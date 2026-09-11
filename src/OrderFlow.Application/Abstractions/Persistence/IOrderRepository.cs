@@ -14,4 +14,8 @@ public interface IOrderRepository
     /// use case writes multiple aggregates atomically).
     /// </summary>
     Task AddAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task<Order?> GetByIdAsync(
+    int orderId,
+    CancellationToken cancellationToken);
 }

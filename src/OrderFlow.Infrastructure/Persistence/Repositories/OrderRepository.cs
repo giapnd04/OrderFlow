@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Domain.Entities;
 
@@ -13,5 +14,15 @@ internal sealed class OrderRepository : IOrderRepository
     {
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Order?> GetByIdAsync(int orderId, CancellationToken cancellationToken)
+    {
+        return await _db.Orders
+            .AsNoTracking()
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(
+                order => order.Id == orderId,
+                cancellationToken);
     }
 }

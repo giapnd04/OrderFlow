@@ -155,5 +155,10 @@ public class CreateOrderCommandHandlerTests
             Saved = order;
             return Task.CompletedTask;
         }
+
+        public Task<Order?> GetByIdAsync(int orderId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

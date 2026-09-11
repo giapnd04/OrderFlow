@@ -1,6 +1,21 @@
 @OrderFlow.API_HostAddress = http://localhost:5064
 
-GET {{OrderFlow.API_HostAddress}}/weatherforecast/
+### Create order 
+POST {{OrderFlow.API_HostAddress}}/api/orders
+Content-Type: application/json
 Accept: application/json
+
+{
+  "customerId": 2,
+  "items": [
+    { "productId": 3, "quantity": 2 },
+    { "productId": 4, "quantity": 1 }
+  ]
+}
+
+### Get order by id
+GET {{OrderFlow.API_HostAddress}}/api/orders/3
+Accept: application/json
+
 
 ###

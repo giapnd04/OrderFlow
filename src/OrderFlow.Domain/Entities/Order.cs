@@ -77,4 +77,15 @@ public class Order : AuditableEntity
 
         Status = OrderStatus.Cancelled;
     }
+
+    public void MarkAsPaid()
+    {
+        if (Status != OrderStatus.PendingPayment)
+        {
+            throw new InvalidOrderStateException(
+                $"Order '{Id}' cannot be marked as paid from status '{Status}'.");
+        }
+
+        Status = OrderStatus.Paid;
+    }
 }

@@ -16,13 +16,11 @@ internal sealed class OrderRepository : IOrderRepository
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<Order?> GetByIdAsync(int orderId, CancellationToken cancellationToken)
+    public async Task<Order?> GetByIdAsync(int orderId, CancellationToken cancellationToken = default)
     {
         return await _db.Orders
             .AsNoTracking()
             .Include(order => order.Items)
-            .FirstOrDefaultAsync(
-                order => order.Id == orderId,
-                cancellationToken);
+            .FirstOrDefaultAsync(order => order.Id == orderId, cancellationToken);
     }
 }

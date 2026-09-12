@@ -10,15 +10,13 @@ namespace OrderFlow.API.Controllers;
 public sealed class OrdersController : ControllerBase
 {
     private readonly CreateOrderCommandHandler _createOrder;
-    private readonly GetOrderByIdCommandHandler _getOrderByIdCommandHandler;
+    private readonly GetOrderByIdQueryHandler _getOrderById;
 
-    public OrdersController(CreateOrderCommandHandler createOrder, GetOrderByIdCommandHandler getOrderByIdCommandHandler)
+    public OrdersController(CreateOrderCommandHandler createOrder, GetOrderByIdQueryHandler getOrderById)
     {
         _createOrder = createOrder;
-        _getOrderByIdCommandHandler = getOrderByIdCommandHandler;
-
+        _getOrderById = getOrderById;
     }
-
 
     [HttpPost]
     [ProducesResponseType(typeof(CreateOrderResult), StatusCodes.Status201Created)]
@@ -38,16 +36,15 @@ public sealed class OrdersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-public async Task<ActionResult<GetOrderByIdResult>> GetById(
-    int id,
-    CancellationToken cancellationToken)
-{
-    var query = new GetOrderByIdCommand(id);
+    [ProducesResponseType(typeof(GetOrderByIdResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetOrderByIdResult>> GetById(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetOrderByIdQuery(id);
 
-    var result = await _getOrderByIdCommandHandler.Handle(
-        query,
-        cancellationToken);
+        var result = await _getOrderById.Handle(query, cancellationToken);
 
-    return Ok(result);
-}
+        return Ok(result);
+    }
 }

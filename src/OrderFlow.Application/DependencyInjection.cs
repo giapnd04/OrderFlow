@@ -9,8 +9,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<CreateOrderCommandHandler>();
-        services.AddScoped<GetOrderByIdCommandHandler>();
-
+        services.AddScoped<GetOrderByIdQueryHandler>();
 
         return services;
     }

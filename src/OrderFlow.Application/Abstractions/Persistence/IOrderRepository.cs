@@ -15,7 +15,10 @@ public interface IOrderRepository
     /// </summary>
     Task AddAsync(Order order, CancellationToken cancellationToken = default);
 
-    Task<Order?> GetByIdAsync(
-    int orderId,
-    CancellationToken cancellationToken);
+    /// <summary>
+    /// Loads a single order together with its items, or <c>null</c> if no order with
+    /// <paramref name="orderId"/> exists. Read-only — callers must not mutate and save
+    /// the returned aggregate through this method.
+    /// </summary>
+    Task<Order?> GetByIdAsync(int orderId, CancellationToken cancellationToken = default);
 }

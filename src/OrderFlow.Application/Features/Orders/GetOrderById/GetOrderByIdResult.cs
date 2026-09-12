@@ -1,21 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+namespace OrderFlow.Application.Features.Orders.GetOrderById;
 
-namespace OrderFlow.Application.Features.Orders.GetOrderById
-{
-    public sealed record GetOrderByIdResult(
-        int OrderId,
-        int CustomerId,
-        string Status,
-        decimal TotalAmount,
-        IReadOnlyCollection<GetOrderByIdItemResult> Items);
+/// <summary>
+/// Outcome of a successful <see cref="GetOrderByIdQuery"/>. A flat contract the API
+/// can return directly without exposing the <c>Order</c> domain entity (SDS §11).
+/// </summary>
+public sealed record GetOrderByIdResult(
+    int OrderId,
+    int CustomerId,
+    string Status,
+    decimal TotalAmount,
+    IReadOnlyCollection<GetOrderByIdItemResult> Items);
 
-    public sealed record GetOrderByIdItemResult(
-        int ProductId,
-        int Quantity,
-        decimal UnitPrice,
-        decimal Subtotal);
-}
+public sealed record GetOrderByIdItemResult(
+    int ProductId,
+    int Quantity,
+    decimal UnitPrice,
+    decimal Subtotal);

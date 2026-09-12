@@ -24,6 +24,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         {
             ValidationException => (StatusCodes.Status400BadRequest, "Validation failed"),
 
+            InvalidOrderStateException => (StatusCodes.Status409Conflict, "Invalid order state"),
+
             DomainException => (StatusCodes.Status400BadRequest, "Validation failed"),
 
             NotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),

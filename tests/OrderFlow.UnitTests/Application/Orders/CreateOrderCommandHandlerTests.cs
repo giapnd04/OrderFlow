@@ -160,5 +160,15 @@ public class CreateOrderCommandHandlerTests
         {
             throw new NotImplementedException();
         }
+
+        public Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

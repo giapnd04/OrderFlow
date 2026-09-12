@@ -48,5 +48,11 @@ public class GetOrderByIdQueryHandlerTests
 
         public Task<Order?> GetByIdAsync(int orderId, CancellationToken cancellationToken = default)
             => Task.FromResult(_order is not null && _order.Id == orderId ? _order : null);
+
+        public Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for GetOrderById tests.");
+
+        public Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for GetOrderById tests.");
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Models.Orders;
+using OrderFlow.Application.Features.Orders.CancelOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 
@@ -11,11 +12,16 @@ public sealed class OrdersController : ControllerBase
 {
     private readonly CreateOrderCommandHandler _createOrder;
     private readonly GetOrderByIdQueryHandler _getOrderById;
+    private readonly CancelOrderCommandHandler _cancelOrder;
 
-    public OrdersController(CreateOrderCommandHandler createOrder, GetOrderByIdQueryHandler getOrderById)
+    public OrdersController(
+        CreateOrderCommandHandler createOrder, 
+        GetOrderByIdQueryHandler getOrderById,
+        CancelOrderCommandHandler cancelOrder)
     {
         _createOrder = createOrder;
         _getOrderById = getOrderById;
+        _cancelOrder = cancelOrder;
     }
 
     [HttpPost]
@@ -46,5 +52,20 @@ public sealed class OrdersController : ControllerBase
         var result = await _getOrderById.Handle(query, cancellationToken);
 
         return Ok(result);
+    }
+
+    [HttpPost("{id:int}/cancel")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Cancel(
+    int id,
+    CancellationToken cancellationToken)
+    {
+        var command = new CancelOrderCommand(id);
+
+        await _cancelOrder.Handle(
+            command,
+            cancellationToken);
+
+        return NoContent();
     }
 }

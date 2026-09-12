@@ -23,4 +23,18 @@ internal sealed class OrderRepository : IOrderRepository
             .Include(order => order.Items)
             .FirstOrDefaultAsync(order => order.Id == orderId, cancellationToken);
     }
+
+    public async Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Orders
+            .Include(order => order.Items)
+            .FirstOrDefaultAsync(
+                order => order.Id == orderId,
+                cancellationToken);
+    }
+
+    public async Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
+    {
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }

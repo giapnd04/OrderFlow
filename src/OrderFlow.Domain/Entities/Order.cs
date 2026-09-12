@@ -66,4 +66,15 @@ public class Order : AuditableEntity
 
         return order;
     }
+
+    public void Cancel()
+    {
+        if (Status != OrderStatus.PendingPayment)
+        {
+            throw new InvalidOrderStateException(
+                $"Order cannot be cancelled from status '{Status}'.");
+        }
+
+        Status = OrderStatus.Cancelled;
+    }
 }

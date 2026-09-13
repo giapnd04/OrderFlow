@@ -10,15 +10,12 @@ public class CreateOrderCommandHandlerTests
 {
     private const int KnownCustomerId = 1;
 
-    private static Product ActiveProduct(int id, decimal price) => new()
+    private static Product ActiveProduct(int id, decimal price, ProductStatus status = ProductStatus.Active)
     {
-        Id = id,
-        Sku = $"SKU-{id}",
-        Name = $"Product {id}",
-        Price = price,
-        StockQuantity = 100,
-        Status = ProductStatus.Active,
-    };
+        var product = Product.Create($"SKU-{id}", $"Product {id}", price, stockQuantity: 100, status);
+        product.Id = id;
+        return product;
+    }
 
     private static CreateOrderCommandHandler HandlerFor(FakeOrderRepository orders, params Product[] products)
         => new(
@@ -94,8 +91,7 @@ public class CreateOrderCommandHandlerTests
     [Fact]
     public async Task Handle_DiscontinuedProduct_ThrowsValidation()
     {
-        var discontinued = ActiveProduct(10, 100m);
-        discontinued.Status = ProductStatus.Discontinued;
+        var discontinued = ActiveProduct(10, 100m, ProductStatus.Discontinued);
         var handler = HandlerFor(new FakeOrderRepository(), discontinued);
 
         var command = new CreateOrderCommand(KnownCustomerId, new[] { new CreateOrderItemInput(10, 1) });

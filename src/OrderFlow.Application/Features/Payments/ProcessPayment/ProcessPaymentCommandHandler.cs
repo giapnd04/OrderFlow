@@ -11,13 +11,16 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 {
     private readonly IOrderRepository _orders;
     private readonly IPaymentRepository _payments;
+    private readonly IProductRepository _products;
 
     public ProcessPaymentCommandHandler(
         IOrderRepository orders,
-        IPaymentRepository payments)
+        IPaymentRepository payments,
+        IProductRepository products)
     {
         _orders = orders;
         _payments = payments;
+        _products = products;
     }
 
     public async Task<ProcessPaymentResult> Handle(
@@ -70,6 +73,25 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
             if (succeededAmount >= order.TotalAmount)
             {
+                var productIds = order.Items
+                   .Select(item => item.ProductId)
+                   .Distinct()
+                   .ToList();
+
+                var products = await _products.GetByIdsAsync(productIds, cancellationToken);
+
+                var productsById = products.ToDictionary(product => product.Id);
+
+                foreach (var item in order.Items)
+                {
+                    if (!productsById.TryGetValue(item.ProductId, out var product))
+                    {
+                        throw new NotFoundException("Product", item.ProductId);
+                    }
+
+                    product.DecreaseStock(item.Quantity);
+                }
+
                 order.MarkAsPaid();
             }
         }

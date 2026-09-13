@@ -19,6 +19,7 @@ internal sealed class PaymentRepository : IPaymentRepository
         CancellationToken cancellationToken = default)
     {
         await _db.PaymentAttempts.AddAsync(paymentAttempt, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken); 
     }
 
     public async Task<decimal> GetSucceededAmountAsync(

@@ -121,7 +121,7 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
 
                     b.ToTable("orders", null, t =>
                         {
-                            t.HasCheckConstraint("ck_orders_status", "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Processing', N'Completed', N'Cancelled')");
+                            t.HasCheckConstraint("ck_orders_status", "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Confirmed', N'Cancelled')");
 
                             t.HasCheckConstraint("ck_orders_total_amount", "[total_amount] >= 0");
                         });
@@ -270,6 +270,10 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("price");
 
+                    b.Property<int>("ReservedQuantity")
+                        .HasColumnType("int")
+                        .HasColumnName("reserved_quantity");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -309,6 +313,10 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                     b.ToTable("products", null, t =>
                         {
                             t.HasCheckConstraint("ck_products_price", "[price] >= 0");
+
+                            t.HasCheckConstraint("ck_products_reserved_not_exceed_stock", "[reserved_quantity] <= [stock_quantity]");
+
+                            t.HasCheckConstraint("ck_products_reserved_quantity", "[reserved_quantity] >= 0");
 
                             t.HasCheckConstraint("ck_products_status", "[status] COLLATE Latin1_General_CS_AS IN (N'Active', N'Discontinued')");
 

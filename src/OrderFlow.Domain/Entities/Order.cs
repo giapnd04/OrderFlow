@@ -67,9 +67,15 @@ public class Order : AuditableEntity
         return order;
     }
 
+    /// <summary>
+    /// Cancels the order. Valid from <see cref="OrderStatus.PendingPayment"/> (before
+    /// payment) or <see cref="OrderStatus.Confirmed"/> (after Sales review). Not valid
+    /// from <see cref="OrderStatus.Paid"/> — a paid order is locked until a Sales
+    /// action (<see cref="Confirm"/>) reviews it (ADR-003).
+    /// </summary>
     public void Cancel()
     {
-        if (Status != OrderStatus.PendingPayment)
+        if (Status != OrderStatus.PendingPayment && Status != OrderStatus.Confirmed)
         {
             throw new InvalidOrderStateException(
                 $"Order cannot be cancelled from status '{Status}'.");
@@ -87,5 +93,20 @@ public class Order : AuditableEntity
         }
 
         Status = OrderStatus.Paid;
+    }
+
+    /// <summary>
+    /// Sales confirms a paid order, unlocking it for cancellation again (ADR-003).
+    /// Valid only from <see cref="OrderStatus.Paid"/>.
+    /// </summary>
+    public void Confirm()
+    {
+        if (Status != OrderStatus.Paid)
+        {
+            throw new InvalidOrderStateException(
+                $"Order '{Id}' cannot be confirmed from status '{Status}'.");
+        }
+
+        Status = OrderStatus.Confirmed;
     }
 }

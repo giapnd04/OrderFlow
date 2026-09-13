@@ -13,7 +13,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             t.HasCheckConstraint("ck_orders_total_amount", "[total_amount] >= 0");
             t.HasCheckConstraint(
                 "ck_orders_status",
-                "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Processing', N'Completed', N'Cancelled')");
+                "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Confirmed', N'Cancelled')");
         });
 
         builder.HasKey(o => o.Id);

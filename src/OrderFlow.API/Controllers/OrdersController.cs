@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Models.Orders;
 using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Orders.CancelOrder;
+using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
@@ -15,17 +16,20 @@ public sealed class OrdersController : ControllerBase
     private readonly CreateOrderCommandHandler _createOrder;
     private readonly GetOrderByIdQueryHandler _getOrderById;
     private readonly CancelOrderCommandHandler _cancelOrder;
+    private readonly ConfirmOrderCommandHandler _confirmOrder;
     private readonly ProcessPaymentCommandHandler _processPayment;
 
     public OrdersController(
-        CreateOrderCommandHandler createOrder, 
+        CreateOrderCommandHandler createOrder,
         GetOrderByIdQueryHandler getOrderById,
         CancelOrderCommandHandler cancelOrder,
+        ConfirmOrderCommandHandler confirmOrder,
         ProcessPaymentCommandHandler processPayment)
     {
         _createOrder = createOrder;
         _getOrderById = getOrderById;
         _cancelOrder = cancelOrder;
+        _confirmOrder = confirmOrder;
         _processPayment = processPayment;
     }
 
@@ -68,6 +72,21 @@ public sealed class OrdersController : ControllerBase
         var command = new CancelOrderCommand(id);
 
         await _cancelOrder.Handle(
+            command,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/confirm")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Confirm(
+    int id,
+    CancellationToken cancellationToken)
+    {
+        var command = new ConfirmOrderCommand(id);
+
+        await _confirmOrder.Handle(
             command,
             cancellationToken);
 

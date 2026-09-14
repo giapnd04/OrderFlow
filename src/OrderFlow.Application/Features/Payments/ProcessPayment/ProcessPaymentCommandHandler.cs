@@ -89,7 +89,9 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
                         throw new NotFoundException("Product", item.ProductId);
                     }
 
-                    product.DecreaseStock(item.Quantity);
+                    product.FulfillReservation(item.Quantity);
+
+                   // product.DecreaseStock(item.Quantity);
                 }
 
                 order.MarkAsPaid();

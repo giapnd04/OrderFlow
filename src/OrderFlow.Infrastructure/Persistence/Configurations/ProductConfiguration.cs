@@ -13,6 +13,10 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             t.HasCheckConstraint("ck_products_price", "[price] >= 0");
             t.HasCheckConstraint("ck_products_stock_quantity", "[stock_quantity] >= 0");
+
+            t.HasCheckConstraint("ck_products_reserved_quantity", "[reserved_quantity] >= 0");
+            t.HasCheckConstraint("ck_products_reserved_not_exceed_stock", "[reserved_quantity] <= [stock_quantity]");
+            
             t.HasCheckConstraint(
                 "ck_products_status",
                 "[status] COLLATE Latin1_General_CS_AS IN (N'Active', N'Discontinued')");
@@ -52,5 +56,8 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(p => p.Sku)
             .IsUnique();
+
+        builder.Property(p => p.ReservedQuantity)
+            .IsRequired();
     }
 }

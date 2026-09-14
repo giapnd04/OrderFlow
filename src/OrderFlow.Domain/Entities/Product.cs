@@ -22,6 +22,9 @@ public class Product : AuditableEntity
     public ProductStatus Status { get; private set; }
 
     public byte[] RowVersion { get; private set; } = [];
+    public int ReservedQuantity { get; private set; }
+
+
 
     // EF Core materialisation constructor.
     private Product()
@@ -65,20 +68,72 @@ public class Product : AuditableEntity
         };
     }
 
-    public void DecreaseStock(int quantity)
+    //public void DecreaseStock(int quantity)
+    //{
+    //    if (quantity <= 0)
+    //    {
+    //        throw new DomainException("Quantity to decrease must be greater than zero.");
+    //    }
+
+    //    if (quantity > StockQuantity)
+    //    {
+    //        throw new InsufficientStockException($"Insufficient stock for product '{Sku}'.");
+    //    }
+
+    //    StockQuantity -= quantity;
+    //}
+
+    public void Reserve(int quantity)
     {
-        if (quantity <= 0)
+
+        ValidateQuantity(quantity, "reserve");
+
+        var availableQuantity = StockQuantity - ReservedQuantity;
+
+        if (quantity > availableQuantity)
         {
-            throw new DomainException(
-                "Quantity to decrease must be greater than zero.");
+            throw new InsufficientStockException($"Insufficient available stock for product '{Sku}'.");
         }
 
-        if (quantity > StockQuantity)
+        ReservedQuantity += quantity;
+    }
+
+    public void ReleaseReservation(int quantity)
+    {
+        ValidateQuantity(quantity, "release");
+
+        if (quantity > ReservedQuantity)
         {
-            throw new InsufficientStockException(
-                $"Insufficient stock for product '{Sku}'.");
+            throw new DomainException($"Cannot release more reservation than currently reserved for product '{Sku}'.");
+        }
+
+        ReservedQuantity -= quantity;
+    }
+
+    public void FulfillReservation(int quantity)
+    {
+        ValidateQuantity(quantity, "fulfill");
+
+        if (quantity > ReservedQuantity)
+        {
+            throw new DomainException($"Cannot fulfill more reservation than currently reserved for product '{Sku}'.");
         }
 
         StockQuantity -= quantity;
+        ReservedQuantity -= quantity;
+    }
+
+    public void Restock(int quantity)
+    {
+        ValidateQuantity(quantity, "restock");
+
+        StockQuantity += quantity;
+    }
+
+    private static void ValidateQuantity(int quantity, string operation)
+    {
+        if (quantity <= 0)
+            throw new DomainException(
+                $"Quantity to {operation} must be greater than zero.");
     }
 }

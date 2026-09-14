@@ -82,6 +82,11 @@ public sealed class CreateOrderCommandHandler
                 $"These products are not available for ordering: {string.Join(", ", discontinued)}.");
         }
 
+        foreach (var kvp in requestedQuantities)
+        {
+            productsById[kvp.Key].Reserve(kvp.Value);
+        }
+
         var items = requestedQuantities
             .Select(kvp => OrderItem.Create(kvp.Key, kvp.Value, productsById[kvp.Key].Price))
             .ToList();

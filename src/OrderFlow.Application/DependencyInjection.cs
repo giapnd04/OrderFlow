@@ -4,6 +4,7 @@ using OrderFlow.Application.Features.Orders.CancelOrder;
 using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
+using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 
 namespace OrderFlow.Application;
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<CancelOrderCommandHandler>();
         services.AddScoped<ConfirmOrderCommandHandler>();
         services.AddScoped<ProcessPaymentCommandHandler>();
+        services.AddScoped<GetOrdersQueryHandler>();
 
         return services;
     }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Domain.Entities;
+using OrderFlow.Domain.Enums;
 
 namespace OrderFlow.Infrastructure.Persistence.Repositories;
 
@@ -36,5 +37,35 @@ internal sealed class OrderRepository : IOrderRepository
     public async Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
     {
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId,
+    int pageNumber,
+    int pageSize,
+    CancellationToken cancellationToken = default)
+    {
+        var query = _db.Orders
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(order => order.Status == status.Value);
+        }
+
+        if (customerId.HasValue)
+        {
+            query = query.Where(order => order.CustomerId == customerId.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var orders = await query
+            .OrderBy(order => order.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (orders, totalCount);
     }
 }

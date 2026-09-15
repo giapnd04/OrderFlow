@@ -2,6 +2,7 @@ using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Domain.Entities;
+using OrderFlow.Domain.Enums;
 
 namespace OrderFlow.UnitTests.Application.Orders;
 
@@ -51,6 +52,11 @@ public class GetOrderByIdQueryHandlerTests
 
         public Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for GetOrderById tests.");
+
+        public Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
 
         public Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for GetOrderById tests.");

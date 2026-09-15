@@ -13,5 +13,7 @@ public enum OrderStatus
     PendingPayment,
     Paid,
     Confirmed,
-    Cancelled
+    Cancelled,
+    Shipped,
+    Delivered
 }

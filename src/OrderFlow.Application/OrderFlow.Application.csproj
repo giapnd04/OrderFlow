@@ -6,7 +6,6 @@
 
   <ItemGroup>
     <Folder Include="Abstractions\" />
-    <Folder Include="Features\" />
     <Folder Include="DTOs\" />
     <Folder Include="Behaviors\" />
     <Folder Include="Exceptions\" />

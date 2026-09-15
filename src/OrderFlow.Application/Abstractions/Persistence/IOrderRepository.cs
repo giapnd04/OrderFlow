@@ -1,4 +1,5 @@
 using OrderFlow.Domain.Entities;
+using OrderFlow.Domain.Enums;
 
 namespace OrderFlow.Application.Abstractions.Persistence;
 
@@ -13,4 +14,7 @@ public interface IOrderRepository
     Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(Order order, CancellationToken cancellationToken = default);
+
+    Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId, int pageNumber, int pageSize,
+    CancellationToken cancellationToken = default);
 }

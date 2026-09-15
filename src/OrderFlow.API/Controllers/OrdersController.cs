@@ -5,7 +5,9 @@ using OrderFlow.Application.Features.Orders.CancelOrder;
 using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
+using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
+using OrderFlow.Domain.Enums;
 
 namespace OrderFlow.API.Controllers;
 
@@ -18,19 +20,22 @@ public sealed class OrdersController : ControllerBase
     private readonly CancelOrderCommandHandler _cancelOrder;
     private readonly ConfirmOrderCommandHandler _confirmOrder;
     private readonly ProcessPaymentCommandHandler _processPayment;
+    private readonly GetOrdersQueryHandler _getOrders;
 
     public OrdersController(
         CreateOrderCommandHandler createOrder,
         GetOrderByIdQueryHandler getOrderById,
         CancelOrderCommandHandler cancelOrder,
         ConfirmOrderCommandHandler confirmOrder,
-        ProcessPaymentCommandHandler processPayment)
+        ProcessPaymentCommandHandler processPayment,
+        GetOrdersQueryHandler getOrders)
     {
         _createOrder = createOrder;
         _getOrderById = getOrderById;
         _cancelOrder = cancelOrder;
         _confirmOrder = confirmOrder;
         _processPayment = processPayment;
+        _getOrders = getOrders;
     }
 
     [HttpPost]
@@ -108,6 +113,28 @@ public sealed class OrdersController : ControllerBase
 
         var result = await _processPayment.Handle(
             command,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(GetOrdersResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetOrdersResult>> GetOrders(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 20,
+    [FromQuery] OrderStatus? status = null,
+    [FromQuery] int? customerId = null,
+    CancellationToken cancellationToken = default)
+    {
+        var query = new GetOrdersQuery(
+            pageNumber,
+            pageSize,
+            status,
+            customerId);
+
+        var result = await _getOrders.Handle(
+            query,
             cancellationToken);
 
         return Ok(result);

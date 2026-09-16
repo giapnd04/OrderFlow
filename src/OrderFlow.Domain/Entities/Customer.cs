@@ -1,4 +1,6 @@
 using OrderFlow.Domain.Common;
+using OrderFlow.Domain.Exceptions;
+using System.Net.Mail;
 
 namespace OrderFlow.Domain.Entities;
 
@@ -7,9 +9,55 @@ namespace OrderFlow.Domain.Entities;
 /// </summary>
 public class Customer : AuditableEntity
 {
-    public string Name { get; set; } = null!;
+    public string Name { get;private set; } = null!;
 
-    public string Email { get; set; } = null!;
+    public string Email { get;private set; } = null!;
 
-    public string? Phone { get; set; }
+    public string? Phone { get;private set; }
+
+    public static Customer Create(
+        string name,
+        string email,
+        string? phone = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DomainException("Customer requires a name.");
+        }
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new DomainException("Customer requires an email.");
+        }
+
+        if (!IsValidEmail(email))
+        {
+            throw new DomainException("Customer email is not valid.");
+        }
+
+        return new Customer
+        {
+            Name = name.Trim(),
+            Email = email.Trim(),
+            Phone = string.IsNullOrWhiteSpace(phone)
+                ? null
+                : phone.Trim(),
+        };
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            var address = new MailAddress(email.Trim());
+
+            return address.Address.Equals(
+                email.Trim(),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 }

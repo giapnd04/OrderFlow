@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using OrderFlow.Application.Abstractions.Messaging;
+using OrderFlow.Application.Features.Customers.CreateCustomer;
 using OrderFlow.Application.Features.Orders.CancelOrder;
 using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
@@ -19,6 +20,8 @@ public static class DependencyInjection
         services.AddScoped<ConfirmOrderCommandHandler>();
         services.AddScoped<ProcessPaymentCommandHandler>();
         services.AddScoped<GetOrdersQueryHandler>();
+        services.AddScoped<CreateCustomerCommandHandler>();
+
 
         return services;
     }

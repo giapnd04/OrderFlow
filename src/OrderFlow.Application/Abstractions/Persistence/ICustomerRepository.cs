@@ -8,4 +8,8 @@ namespace OrderFlow.Application.Abstractions.Persistence;
 public interface ICustomerRepository
 {
     Task<bool> ExistsAsync(int customerId, CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    Task<bool> AddAsync(OrderFlow.Domain.Entities.Customer customer, CancellationToken cancellationToken = default);
 }

@@ -125,8 +125,18 @@ public class CreateOrderCommandHandlerTests
 
         public FakeCustomerRepository(params int[] ids) => _ids = new HashSet<int>(ids);
 
+        public Task<bool> AddAsync(Customer customer, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<bool> ExistsAsync(int customerId, CancellationToken cancellationToken = default)
             => Task.FromResult(_ids.Contains(customerId));
+
+        public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     private sealed class FakeProductRepository : IProductRepository

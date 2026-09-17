@@ -163,21 +163,14 @@ public class CreateCustomerCommandHandlerTests
                         StringComparison.OrdinalIgnoreCase)));
         }
 
-        public Task AddAsync(
-            Customer customer,
-            CancellationToken cancellationToken = default)
+        public Task<bool> AddAsync(Customer customer, CancellationToken cancellationToken = default)
         {
             customer.Id = _customers.Count + 1;
 
             _customers.Add(customer);
             Saved = customer;
 
-            return Task.CompletedTask;
-        }
-
-        Task<bool> ICustomerRepository.AddAsync(Customer customer, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
+            return Task.FromResult(true);
         }
     }
 }

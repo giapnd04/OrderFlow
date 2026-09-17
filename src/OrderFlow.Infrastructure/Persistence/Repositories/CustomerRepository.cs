@@ -35,14 +35,13 @@ internal sealed class CustomerRepository : ICustomerRepository
     public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
     => _db.Customers.AnyAsync(c => c.Email == email, cancellationToken);
 
-    public async Task AddAsync(Customer customer, CancellationToken cancellationToken = default)
+    public async Task<bool> AddAsync(Customer customer, CancellationToken cancellationToken = default)
     {
         await _db.Customers.AddAsync(customer, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 
-    Task<bool> ICustomerRepository.AddAsync(Customer customer, CancellationToken cancellationToken)
-    {
-        throw new NotImplementedException();
-    }
+
 }

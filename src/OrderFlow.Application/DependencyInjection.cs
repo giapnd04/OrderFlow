@@ -7,6 +7,7 @@ using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
+using OrderFlow.Application.Features.Products.CreateProduct;
 
 namespace OrderFlow.Application;
 
@@ -21,7 +22,7 @@ public static class DependencyInjection
         services.AddScoped<ProcessPaymentCommandHandler>();
         services.AddScoped<GetOrdersQueryHandler>();
         services.AddScoped<CreateCustomerCommandHandler>();
-
+        services.AddScoped<CreateProductCommandHandler>();
 
         return services;
     }

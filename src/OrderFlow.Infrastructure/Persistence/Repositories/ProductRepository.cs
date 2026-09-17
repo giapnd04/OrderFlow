@@ -23,4 +23,19 @@ internal sealed class ProductRepository : IProductRepository
             .Where(p => productIds.Contains(p.Id))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<bool> ExistsBySkuAsync(
+     string sku,
+     CancellationToken cancellationToken = default)
+    {
+        return await _db.Products
+            .AnyAsync(p => p.Sku == sku, cancellationToken);
+    }
+
+    public async Task AddAsync(Product product, CancellationToken cancellationToken = default)
+    {
+        _db.Products.Add(product);
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }

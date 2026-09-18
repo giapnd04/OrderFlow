@@ -150,6 +150,12 @@ public class CreateOrderCommandHandlerTests
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Product>>(
                 _products.Where(p => productIds.Contains(p.Id)).ToList());
+
+        public Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for CreateOrder tests.");
+
+        public Task AddAsync(Product product, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for CreateOrder tests.");
     }
 
     private sealed class FakeOrderRepository : IOrderRepository

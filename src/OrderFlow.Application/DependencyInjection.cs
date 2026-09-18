@@ -6,6 +6,7 @@ using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrders;
+using OrderFlow.Application.Features.Orders.ShipOrder;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Application.Features.Products.CreateProduct;
 
@@ -19,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<GetOrderByIdQueryHandler>();
         services.AddScoped<CancelOrderCommandHandler>();
         services.AddScoped<ConfirmOrderCommandHandler>();
+        services.AddScoped<ShipOrderCommandHandler>();
         services.AddScoped<ProcessPaymentCommandHandler>();
         services.AddScoped<GetOrdersQueryHandler>();
         services.AddScoped<CreateCustomerCommandHandler>();

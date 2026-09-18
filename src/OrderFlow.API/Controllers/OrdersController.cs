@@ -6,6 +6,7 @@ using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrders;
+using OrderFlow.Application.Features.Orders.ShipOrder;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Domain.Enums;
 
@@ -19,6 +20,7 @@ public sealed class OrdersController : ControllerBase
     private readonly GetOrderByIdQueryHandler _getOrderById;
     private readonly CancelOrderCommandHandler _cancelOrder;
     private readonly ConfirmOrderCommandHandler _confirmOrder;
+    private readonly ShipOrderCommandHandler _shipOrder;
     private readonly ProcessPaymentCommandHandler _processPayment;
     private readonly GetOrdersQueryHandler _getOrders;
 
@@ -27,6 +29,7 @@ public sealed class OrdersController : ControllerBase
         GetOrderByIdQueryHandler getOrderById,
         CancelOrderCommandHandler cancelOrder,
         ConfirmOrderCommandHandler confirmOrder,
+        ShipOrderCommandHandler shipOrder,
         ProcessPaymentCommandHandler processPayment,
         GetOrdersQueryHandler getOrders)
     {
@@ -34,6 +37,7 @@ public sealed class OrdersController : ControllerBase
         _getOrderById = getOrderById;
         _cancelOrder = cancelOrder;
         _confirmOrder = confirmOrder;
+        _shipOrder = shipOrder;
         _processPayment = processPayment;
         _getOrders = getOrders;
     }
@@ -92,6 +96,21 @@ public sealed class OrdersController : ControllerBase
         var command = new ConfirmOrderCommand(id);
 
         await _confirmOrder.Handle(
+            command,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/ship")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Ship(
+    int id,
+    CancellationToken cancellationToken)
+    {
+        var command = new ShipOrderCommand(id);
+
+        await _shipOrder.Handle(
             command,
             cancellationToken);
 

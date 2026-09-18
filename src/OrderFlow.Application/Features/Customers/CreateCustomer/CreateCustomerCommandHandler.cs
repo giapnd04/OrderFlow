@@ -19,11 +19,6 @@ public sealed class CreateCustomerCommandHandler
      CreateCustomerCommand command,
      CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(command.Name))
-        {
-            throw new ValidationException("Name is required.");
-        }
-
         var email = command.Email?.Trim();
 
         if (string.IsNullOrWhiteSpace(email))

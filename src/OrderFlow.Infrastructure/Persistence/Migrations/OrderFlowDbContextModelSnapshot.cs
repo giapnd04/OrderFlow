@@ -121,7 +121,7 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
 
                     b.ToTable("orders", null, t =>
                         {
-                            t.HasCheckConstraint("ck_orders_status", "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Confirmed', N'Cancelled')");
+                            t.HasCheckConstraint("ck_orders_status", "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Confirmed', N'Cancelled', N'Shipped')");
 
                             t.HasCheckConstraint("ck_orders_total_amount", "[total_amount] >= 0");
                         });

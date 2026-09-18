@@ -109,4 +109,23 @@ public class Order : AuditableEntity
 
         Status = OrderStatus.Confirmed;
     }
+
+    /// <summary>
+    /// Marks a confirmed order as shipped. Valid only from
+    /// <see cref="OrderStatus.Confirmed"/> — a fulfillment fact, not reachable
+    /// before Sales review. <see cref="OrderStatus.Shipped"/> is a terminal-ish
+    /// status for v1: no <c>Cancel</c> path exists from it (no return/refund
+    /// mechanism yet), matching the ADR-004 stance that reversing stock once it
+    /// has left the warehouse is out of scope.
+    /// </summary>
+    public void Ship()
+    {
+        if (Status != OrderStatus.Confirmed)
+        {
+            throw new InvalidOrderStateException(
+                $"Order '{Id}' cannot be shipped from status '{Status}'.");
+        }
+
+        Status = OrderStatus.Shipped;
+    }
 }

@@ -128,4 +128,21 @@ public class Order : AuditableEntity
 
         Status = OrderStatus.Shipped;
     }
+
+    /// <summary>
+    /// Marks a shipped order as delivered. Valid only from
+    /// <see cref="OrderStatus.Shipped"/>. Terminal status for v1 — no further
+    /// transition exists out of <see cref="OrderStatus.Delivered"/> (no
+    /// return/refund mechanism yet, same as <see cref="Ship"/>).
+    /// </summary>
+    public void Deliver()
+    {
+        if (Status != OrderStatus.Shipped)
+        {
+            throw new InvalidOrderStateException(
+                $"Order '{Id}' cannot be delivered from status '{Status}'.");
+        }
+
+        Status = OrderStatus.Delivered;
+    }
 }

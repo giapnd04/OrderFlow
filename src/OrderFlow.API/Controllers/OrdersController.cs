@@ -4,6 +4,7 @@ using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Orders.CancelOrder;
 using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
+using OrderFlow.Application.Features.Orders.DeliverOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Orders.ShipOrder;
@@ -21,6 +22,7 @@ public sealed class OrdersController : ControllerBase
     private readonly CancelOrderCommandHandler _cancelOrder;
     private readonly ConfirmOrderCommandHandler _confirmOrder;
     private readonly ShipOrderCommandHandler _shipOrder;
+    private readonly DeliverOrderCommandHandler _deliverOrder;
     private readonly ProcessPaymentCommandHandler _processPayment;
     private readonly GetOrdersQueryHandler _getOrders;
 
@@ -30,6 +32,7 @@ public sealed class OrdersController : ControllerBase
         CancelOrderCommandHandler cancelOrder,
         ConfirmOrderCommandHandler confirmOrder,
         ShipOrderCommandHandler shipOrder,
+        DeliverOrderCommandHandler deliverOrder,
         ProcessPaymentCommandHandler processPayment,
         GetOrdersQueryHandler getOrders)
     {
@@ -38,6 +41,7 @@ public sealed class OrdersController : ControllerBase
         _cancelOrder = cancelOrder;
         _confirmOrder = confirmOrder;
         _shipOrder = shipOrder;
+        _deliverOrder = deliverOrder;
         _processPayment = processPayment;
         _getOrders = getOrders;
     }
@@ -111,6 +115,21 @@ public sealed class OrdersController : ControllerBase
         var command = new ShipOrderCommand(id);
 
         await _shipOrder.Handle(
+            command,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/deliver")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Deliver(
+    int id,
+    CancellationToken cancellationToken)
+    {
+        var command = new DeliverOrderCommand(id);
+
+        await _deliverOrder.Handle(
             command,
             cancellationToken);
 

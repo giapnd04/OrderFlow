@@ -24,6 +24,15 @@ internal sealed class ProductRepository : IProductRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<Product?> GetByIdAsync(
+        int productId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
+    }
+
     public async Task<bool> ExistsBySkuAsync(
      string sku,
      CancellationToken cancellationToken = default)

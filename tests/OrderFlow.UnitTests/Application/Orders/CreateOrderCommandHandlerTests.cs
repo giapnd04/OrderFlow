@@ -151,6 +151,9 @@ public class CreateOrderCommandHandlerTests
             => Task.FromResult<IReadOnlyList<Product>>(
                 _products.Where(p => productIds.Contains(p.Id)).ToList());
 
+        public Task<Product?> GetByIdAsync(int productId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for CreateOrder tests.");
+
         public Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for CreateOrder tests.");
 

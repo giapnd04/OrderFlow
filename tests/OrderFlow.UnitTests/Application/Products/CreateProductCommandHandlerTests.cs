@@ -188,6 +188,13 @@ public sealed class CreateProductCommandHandlerTests
                 Array.Empty<Product>());
         }
 
+        public Task<Product?> GetByIdAsync(
+            int productId,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException("Not needed for CreateProduct tests.");
+        }
+
         public Task<bool> ExistsBySkuAsync(
             string sku,
             CancellationToken cancellationToken = default)

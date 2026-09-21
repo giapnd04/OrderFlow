@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Models.Customers;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
+using OrderFlow.Application.Features.Customers.GetCustomerById;
 
 namespace OrderFlow.API.Controllers;
 
@@ -9,11 +10,14 @@ namespace OrderFlow.API.Controllers;
 public sealed class CustomersController : ControllerBase
 {
     private readonly CreateCustomerCommandHandler _createCustomer;
+    private readonly GetCustomerByIdQueryHandler _getCustomerById;
 
     public CustomersController(
-        CreateCustomerCommandHandler createCustomer)
+        CreateCustomerCommandHandler createCustomer,
+        GetCustomerByIdQueryHandler getCustomerById)
     {
         _createCustomer = createCustomer;
+        _getCustomerById = getCustomerById;
     }
 
     [HttpPost]
@@ -36,5 +40,18 @@ public sealed class CustomersController : ControllerBase
         return Created(
             $"api/customers/{result.CustomerId}",
             result);
+    }
+
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(GetCustomerByIdResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetCustomerByIdResult>> GetById(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetCustomerByIdQuery(id);
+
+        var result = await _getCustomerById.Handle(query, cancellationToken);
+
+        return Ok(result);
     }
 }

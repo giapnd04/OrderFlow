@@ -151,6 +151,13 @@ public class CreateCustomerCommandHandlerTests
                 _customers.Any(c => c.Id == customerId));
         }
 
+        public Task<Customer?> GetByIdAsync(
+            int customerId,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<bool> ExistsByEmailAsync(
             string email,
             CancellationToken cancellationToken = default)

@@ -13,6 +13,9 @@ internal sealed class CustomerRepository : ICustomerRepository
     public Task<bool> ExistsAsync(int customerId, CancellationToken cancellationToken = default)
         => _db.Customers.AnyAsync(c => c.Id == customerId, cancellationToken);
 
+    public Task<Customer?> GetByIdAsync(int customerId, CancellationToken cancellationToken = default)
+        => _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
+
     //public async Task<bool> ExistsAsync(
     //int customerId,
     //CancellationToken cancellationToken = default)

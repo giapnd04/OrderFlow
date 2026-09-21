@@ -133,6 +133,11 @@ public class CreateOrderCommandHandlerTests
         public Task<bool> ExistsAsync(int customerId, CancellationToken cancellationToken = default)
             => Task.FromResult(_ids.Contains(customerId));
 
+        public Task<Customer?> GetByIdAsync(int customerId, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

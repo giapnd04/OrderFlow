@@ -16,6 +16,35 @@ internal sealed class CustomerRepository : ICustomerRepository
     public Task<Customer?> GetByIdAsync(int customerId, CancellationToken cancellationToken = default)
         => _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
 
+    public Task<Customer?> GetByIdForUpdateAsync(int customerId, CancellationToken cancellationToken = default)
+        => _db.Customers.FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
+
+    public async Task<(IReadOnlyCollection<Customer> Customers, int TotalCount)> GetPagedAsync(
+        string? search,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.Customers.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(c =>
+                EF.Functions.Like(c.Name, $"%{search}%") ||
+                EF.Functions.Like(c.Email, $"%{search}%"));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var customers = await query
+            .OrderBy(c => c.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (customers, totalCount);
+    }
+
     //public async Task<bool> ExistsAsync(
     //int customerId,
     //CancellationToken cancellationToken = default)
@@ -46,5 +75,8 @@ internal sealed class CustomerRepository : ICustomerRepository
         return true;
     }
 
-
+    public async Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default)
+    {
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }

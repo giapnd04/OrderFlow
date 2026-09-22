@@ -138,7 +138,23 @@ public class CreateOrderCommandHandlerTests
             throw new NotImplementedException();
         }
 
+        public Task<Customer?> GetByIdForUpdateAsync(int customerId, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<(IReadOnlyCollection<Customer> Customers, int TotalCount)> GetPagedAsync(
+            string? search, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

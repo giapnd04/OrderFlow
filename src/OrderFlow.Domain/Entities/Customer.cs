@@ -45,6 +45,24 @@ public class Customer : AuditableEntity
         };
     }
 
+    /// <summary>
+    /// Updates the customer's editable profile fields. Email is intentionally NOT
+    /// updatable here — changing the unique identity used for login/lookup is a
+    /// separate concern (verification, re-auth) left out of v1 scope.
+    /// </summary>
+    public void UpdateProfile(string name, string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DomainException("Customer requires a name.");
+        }
+
+        Name = name.Trim();
+        Phone = string.IsNullOrWhiteSpace(phone)
+            ? null
+            : phone.Trim();
+    }
+
     private static bool IsValidEmail(string email)
     {
         try

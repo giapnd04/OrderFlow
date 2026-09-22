@@ -42,10 +42,20 @@ public sealed class GetCustomerByIdQueryHandlerTests
         public Task<Customer?> GetByIdAsync(int customerId, CancellationToken cancellationToken = default)
             => Task.FromResult(_customer is not null && _customer.Id == customerId ? _customer : null);
 
+        public Task<Customer?> GetByIdForUpdateAsync(int customerId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for GetCustomerById tests.");
+
+        public Task<(IReadOnlyCollection<Customer> Customers, int TotalCount)> GetPagedAsync(
+            string? search, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for GetCustomerById tests.");
+
         public Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for GetCustomerById tests.");
 
         public Task<bool> AddAsync(Customer customer, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for GetCustomerById tests.");
+
+        public Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for GetCustomerById tests.");
     }
 }

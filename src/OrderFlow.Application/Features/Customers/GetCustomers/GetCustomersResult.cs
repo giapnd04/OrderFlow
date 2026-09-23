@@ -11,4 +11,5 @@ public sealed record GetCustomersItemResult(
     int CustomerId,
     string Name,
     string Email,
-    string? Phone);
+    string? Phone,
+    string Status);

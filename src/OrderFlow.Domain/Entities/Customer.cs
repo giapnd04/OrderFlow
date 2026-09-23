@@ -1,4 +1,5 @@
 using OrderFlow.Domain.Common;
+using OrderFlow.Domain.Enums;
 using OrderFlow.Domain.Exceptions;
 using System.Net.Mail;
 
@@ -14,6 +15,8 @@ public class Customer : AuditableEntity
     public string Email { get;private set; } = null!;
 
     public string? Phone { get;private set; }
+
+    public CustomerStatus Status { get; private set; }
 
     public static Customer Create(
         string name,
@@ -42,6 +45,7 @@ public class Customer : AuditableEntity
             Phone = string.IsNullOrWhiteSpace(phone)
                 ? null
                 : phone.Trim(),
+            Status = CustomerStatus.Active,
         };
     }
 
@@ -61,6 +65,24 @@ public class Customer : AuditableEntity
         Phone = string.IsNullOrWhiteSpace(phone)
             ? null
             : phone.Trim();
+    }
+
+    /// <summary>
+    /// Deactivates the customer account. Idempotent — deactivating an already
+    /// inactive customer is a no-op rather than an error, since this is a plain
+    /// on/off flag, not a workflow with irreversible steps (unlike Order.Status).
+    /// </summary>
+    public void Deactivate()
+    {
+        Status = CustomerStatus.Inactive;
+    }
+
+    /// <summary>
+    /// Reactivates the customer account. Idempotent, same reasoning as <see cref="Deactivate"/>.
+    /// </summary>
+    public void Reactivate()
+    {
+        Status = CustomerStatus.Active;
     }
 
     private static bool IsValidEmail(string email)

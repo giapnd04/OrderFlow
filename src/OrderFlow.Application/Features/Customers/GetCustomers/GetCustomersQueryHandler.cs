@@ -48,7 +48,8 @@ public sealed class GetCustomersQueryHandler
                 customer.Id,
                 customer.Name,
                 customer.Email,
-                customer.Phone))
+                customer.Phone,
+                customer.Status.ToString()))
             .ToList();
 
         return new GetCustomersResult(items, query.PageNumber, query.PageSize, totalCount, totalPages);

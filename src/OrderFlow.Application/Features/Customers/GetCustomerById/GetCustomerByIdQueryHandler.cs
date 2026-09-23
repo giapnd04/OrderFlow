@@ -29,6 +29,7 @@ public sealed class GetCustomerByIdQueryHandler
             customer.Id,
             customer.Name,
             customer.Email,
-            customer.Phone);
+            customer.Phone,
+            customer.Status.ToString());
     }
 }

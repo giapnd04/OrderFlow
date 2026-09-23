@@ -54,6 +54,14 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("phone");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("Active")
+                        .HasColumnName("status");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -67,7 +75,10 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_customers_email");
 
-                    b.ToTable("customers", (string)null);
+                    b.ToTable("customers", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_customers_status", "[status] COLLATE Latin1_General_CS_AS IN (N'Active', N'Inactive')");
+                        });
                 });
 
             modelBuilder.Entity("OrderFlow.Domain.Entities.Order", b =>

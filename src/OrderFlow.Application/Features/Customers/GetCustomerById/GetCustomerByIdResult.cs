@@ -8,4 +8,5 @@ public sealed record GetCustomerByIdResult(
     int CustomerId,
     string Name,
     string Email,
-    string? Phone);
+    string? Phone,
+    string Status);

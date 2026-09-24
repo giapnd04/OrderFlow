@@ -68,6 +68,27 @@ public class Product : AuditableEntity
         };
     }
 
+    /// <summary>
+    /// Updates name and price. SKU and stock are not editable here: SKU is the unique
+    /// identity, and stock changes go through Reserve/Fulfill/Restock. Existing order
+    /// lines keep their snapshot unit price, so a price change is not retroactive.
+    /// </summary>
+    public void UpdateDetails(string name, decimal price)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new DomainException("Product requires a name.");
+        }
+
+        if (price < 0)
+        {
+            throw new DomainException("Product price cannot be negative.");
+        }
+
+        Name = name.Trim();
+        Price = price;
+    }
+
     //public void DecreaseStock(int quantity)
     //{
     //    if (quantity <= 0)

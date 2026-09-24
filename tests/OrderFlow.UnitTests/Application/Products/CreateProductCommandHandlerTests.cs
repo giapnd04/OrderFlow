@@ -1,4 +1,4 @@
-﻿using OrderFlow.Application.Abstractions.Persistence;
+using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Domain.Entities;
@@ -172,6 +172,17 @@ public sealed class CreateProductCommandHandlerTests
 
     private sealed class FakeProductRepository : IProductRepository
     {
+
+        public Task<Product?> GetByIdForUpdateAsync(int productId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
+        public Task<(IReadOnlyCollection<Product> Products, int TotalCount)> GetPagedAsync(
+            string? search, ProductStatus? status, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
+        public Task UpdateAsync(Product product, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private int _nextId = 1;
 
         public bool SkuExists { get; set; }

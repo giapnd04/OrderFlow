@@ -1,4 +1,5 @@
 using OrderFlow.Domain.Entities;
+using OrderFlow.Domain.Enums;
 
 namespace OrderFlow.Application.Abstractions.Persistence;
 
@@ -14,6 +15,17 @@ public interface IProductRepository
         CancellationToken cancellationToken = default);
 
     Task<Product?> GetByIdAsync(int productId, CancellationToken cancellationToken = default);
+
+    Task<Product?> GetByIdForUpdateAsync(int productId, CancellationToken cancellationToken = default);
+
+    Task<(IReadOnlyCollection<Product> Products, int TotalCount)> GetPagedAsync(
+        string? search,
+        ProductStatus? status,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task UpdateAsync(Product product, CancellationToken cancellationToken = default);
 
     Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default);
 

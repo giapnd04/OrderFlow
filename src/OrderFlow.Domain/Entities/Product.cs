@@ -144,6 +144,15 @@ public class Product : AuditableEntity
         ReservedQuantity -= quantity;
     }
 
+    /// <summary>
+    /// Stops the product from being ordered (CreateOrder rejects non-Active products).
+    /// Idempotent. Existing reservations and orders are untouched.
+    /// </summary>
+    public void Discontinue()
+    {
+        Status = ProductStatus.Discontinued;
+    }
+
     public void Restock(int quantity)
     {
         ValidateQuantity(quantity, "restock");

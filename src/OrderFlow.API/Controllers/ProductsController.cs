@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Models.Products;
 using OrderFlow.Application.Features.Products.CreateProduct;
+using OrderFlow.Application.Features.Products.DiscontinueProduct;
 using OrderFlow.Application.Features.Products.GetProductById;
 using OrderFlow.Application.Features.Products.GetProducts;
+using OrderFlow.Application.Features.Products.RestockProduct;
 using OrderFlow.Application.Features.Products.UpdateProduct;
 using OrderFlow.Domain.Enums;
 
@@ -16,17 +18,23 @@ public sealed class ProductsController : ControllerBase
     private readonly GetProductByIdQueryHandler _getProductById;
     private readonly GetProductsQueryHandler _getProducts;
     private readonly UpdateProductCommandHandler _updateProduct;
+    private readonly DiscontinueProductCommandHandler _discontinueProduct;
+    private readonly RestockProductCommandHandler _restockProduct;
 
     public ProductsController(
         CreateProductCommandHandler createProduct,
         GetProductByIdQueryHandler getProductById,
         GetProductsQueryHandler getProducts,
-        UpdateProductCommandHandler updateProduct)
+        UpdateProductCommandHandler updateProduct,
+        DiscontinueProductCommandHandler discontinueProduct,
+        RestockProductCommandHandler restockProduct)
     {
         _createProduct = createProduct;
         _getProductById = getProductById;
         _getProducts = getProducts;
         _updateProduct = updateProduct;
+        _discontinueProduct = discontinueProduct;
+        _restockProduct = restockProduct;
     }
 
     [HttpPost]
@@ -91,6 +99,31 @@ public sealed class ProductsController : ControllerBase
         var command = new UpdateProductCommand(id, request.Name, request.Price);
 
         var result = await _updateProduct.Handle(command, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/discontinue")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Discontinue(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        await _discontinueProduct.Handle(new DiscontinueProductCommand(id), cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/restock")]
+    [ProducesResponseType(typeof(RestockProductResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<RestockProductResult>> Restock(
+        int id,
+        RestockProductRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _restockProduct.Handle(
+            new RestockProductCommand(id, request.Quantity),
+            cancellationToken);
 
         return Ok(result);
     }

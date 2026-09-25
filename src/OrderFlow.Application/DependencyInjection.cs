@@ -15,8 +15,10 @@ using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Orders.ShipOrder;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Application.Features.Products.CreateProduct;
+using OrderFlow.Application.Features.Products.DiscontinueProduct;
 using OrderFlow.Application.Features.Products.GetProductById;
 using OrderFlow.Application.Features.Products.GetProducts;
+using OrderFlow.Application.Features.Products.RestockProduct;
 using OrderFlow.Application.Features.Products.UpdateProduct;
 
 namespace OrderFlow.Application;
@@ -43,6 +45,8 @@ public static class DependencyInjection
         services.AddScoped<GetProductByIdQueryHandler>();
         services.AddScoped<GetProductsQueryHandler>();
         services.AddScoped<UpdateProductCommandHandler>();
+        services.AddScoped<DiscontinueProductCommandHandler>();
+        services.AddScoped<RestockProductCommandHandler>();
 
         return services;
     }

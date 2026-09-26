@@ -13,6 +13,8 @@ using OrderFlow.Application.Features.Orders.DeliverOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Orders.ShipOrder;
+using OrderFlow.Application.Features.Payments.GetOrderPayments;
+using OrderFlow.Application.Features.Payments.GetOrderPaymentSummary;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Application.Features.Products.DiscontinueProduct;
@@ -34,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<ShipOrderCommandHandler>();
         services.AddScoped<DeliverOrderCommandHandler>();
         services.AddScoped<ProcessPaymentCommandHandler>();
+        services.AddScoped<GetOrderPaymentsQueryHandler>();
+        services.AddScoped<GetOrderPaymentSummaryQueryHandler>();
         services.AddScoped<GetOrdersQueryHandler>();
         services.AddScoped<CreateCustomerCommandHandler>();
         services.AddScoped<GetCustomerByIdQueryHandler>();

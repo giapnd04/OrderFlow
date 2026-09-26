@@ -8,6 +8,8 @@ using OrderFlow.Application.Features.Orders.DeliverOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Orders.ShipOrder;
+using OrderFlow.Application.Features.Payments.GetOrderPayments;
+using OrderFlow.Application.Features.Payments.GetOrderPaymentSummary;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Domain.Enums;
 
@@ -25,6 +27,8 @@ public sealed class OrdersController : ControllerBase
     private readonly DeliverOrderCommandHandler _deliverOrder;
     private readonly ProcessPaymentCommandHandler _processPayment;
     private readonly GetOrdersQueryHandler _getOrders;
+    private readonly GetOrderPaymentsQueryHandler _getOrderPayments;
+    private readonly GetOrderPaymentSummaryQueryHandler _getOrderPaymentSummary;
 
     public OrdersController(
         CreateOrderCommandHandler createOrder,
@@ -34,8 +38,12 @@ public sealed class OrdersController : ControllerBase
         ShipOrderCommandHandler shipOrder,
         DeliverOrderCommandHandler deliverOrder,
         ProcessPaymentCommandHandler processPayment,
-        GetOrdersQueryHandler getOrders)
+        GetOrdersQueryHandler getOrders,
+        GetOrderPaymentsQueryHandler getOrderPayments,
+        GetOrderPaymentSummaryQueryHandler getOrderPaymentSummary)
     {
+        _getOrderPayments = getOrderPayments;
+        _getOrderPaymentSummary = getOrderPaymentSummary;
         _createOrder = createOrder;
         _getOrderById = getOrderById;
         _cancelOrder = cancelOrder;
@@ -152,6 +160,28 @@ public sealed class OrdersController : ControllerBase
         var result = await _processPayment.Handle(
             command,
             cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}/payments")]
+    [ProducesResponseType(typeof(GetOrderPaymentsResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetOrderPaymentsResult>> GetPayments(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _getOrderPayments.Handle(new GetOrderPaymentsQuery(id), cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}/payments/summary")]
+    [ProducesResponseType(typeof(GetOrderPaymentSummaryResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetOrderPaymentSummaryResult>> GetPaymentSummary(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _getOrderPaymentSummary.Handle(new GetOrderPaymentSummaryQuery(id), cancellationToken);
 
         return Ok(result);
     }

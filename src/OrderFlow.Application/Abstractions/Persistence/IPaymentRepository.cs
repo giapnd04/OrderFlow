@@ -6,5 +6,7 @@ public interface IPaymentRepository
 {
     Task AddAsync(PaymentAttempt paymentAttempt, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PaymentAttempt>> GetByOrderIdAsync(int orderId, CancellationToken cancellationToken = default);
+
     Task<decimal> GetSucceededAmountAsync(int orderId, CancellationToken cancellationToken = default);
 }

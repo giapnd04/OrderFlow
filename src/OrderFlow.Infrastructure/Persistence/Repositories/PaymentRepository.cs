@@ -22,6 +22,17 @@ internal sealed class PaymentRepository : IPaymentRepository
         await _db.SaveChangesAsync(cancellationToken); 
     }
 
+    public async Task<IReadOnlyList<PaymentAttempt>> GetByOrderIdAsync(
+        int orderId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.PaymentAttempts
+            .AsNoTracking()
+            .Where(x => x.OrderId == orderId)
+            .OrderBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<decimal> GetSucceededAmountAsync(
         int orderId,
         CancellationToken cancellationToken = default)

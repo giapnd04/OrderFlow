@@ -6,6 +6,7 @@ using OrderFlow.Application.Features.Customers.GetCustomerById;
 using OrderFlow.Application.Features.Customers.GetCustomers;
 using OrderFlow.Application.Features.Customers.ReactivateCustomer;
 using OrderFlow.Application.Features.Customers.UpdateCustomer;
+using OrderFlow.Application.Features.Orders.GetCustomerOrderStats;
 
 namespace OrderFlow.API.Controllers;
 
@@ -19,6 +20,7 @@ public sealed class CustomersController : ControllerBase
     private readonly UpdateCustomerCommandHandler _updateCustomer;
     private readonly DeactivateCustomerCommandHandler _deactivateCustomer;
     private readonly ReactivateCustomerCommandHandler _reactivateCustomer;
+    private readonly GetCustomerOrderStatsQueryHandler _getCustomerOrderStats;
 
     public CustomersController(
         CreateCustomerCommandHandler createCustomer,
@@ -26,8 +28,10 @@ public sealed class CustomersController : ControllerBase
         GetCustomersQueryHandler getCustomers,
         UpdateCustomerCommandHandler updateCustomer,
         DeactivateCustomerCommandHandler deactivateCustomer,
-        ReactivateCustomerCommandHandler reactivateCustomer)
+        ReactivateCustomerCommandHandler reactivateCustomer,
+        GetCustomerOrderStatsQueryHandler getCustomerOrderStats)
     {
+        _getCustomerOrderStats = getCustomerOrderStats;
         _createCustomer = createCustomer;
         _getCustomerById = getCustomerById;
         _getCustomers = getCustomers;
@@ -96,6 +100,17 @@ public sealed class CustomersController : ControllerBase
         var command = new UpdateCustomerCommand(id, request.Name, request.Phone);
 
         var result = await _updateCustomer.Handle(command, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}/order-stats")]
+    [ProducesResponseType(typeof(GetCustomerOrderStatsResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetCustomerOrderStatsResult>> GetOrderStats(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _getCustomerOrderStats.Handle(new GetCustomerOrderStatsQuery(id), cancellationToken);
 
         return Ok(result);
     }

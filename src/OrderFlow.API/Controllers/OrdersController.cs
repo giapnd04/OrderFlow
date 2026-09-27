@@ -6,6 +6,7 @@ using OrderFlow.Application.Features.Orders.ConfirmOrder;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Application.Features.Orders.DeliverOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
+using OrderFlow.Application.Features.Orders.GetOrderStatusSummary;
 using OrderFlow.Application.Features.Orders.GetOrders;
 using OrderFlow.Application.Features.Orders.ShipOrder;
 using OrderFlow.Application.Features.Payments.GetOrderPayments;
@@ -29,6 +30,7 @@ public sealed class OrdersController : ControllerBase
     private readonly GetOrdersQueryHandler _getOrders;
     private readonly GetOrderPaymentsQueryHandler _getOrderPayments;
     private readonly GetOrderPaymentSummaryQueryHandler _getOrderPaymentSummary;
+    private readonly GetOrderStatusSummaryQueryHandler _getOrderStatusSummary;
 
     public OrdersController(
         CreateOrderCommandHandler createOrder,
@@ -40,8 +42,10 @@ public sealed class OrdersController : ControllerBase
         ProcessPaymentCommandHandler processPayment,
         GetOrdersQueryHandler getOrders,
         GetOrderPaymentsQueryHandler getOrderPayments,
-        GetOrderPaymentSummaryQueryHandler getOrderPaymentSummary)
+        GetOrderPaymentSummaryQueryHandler getOrderPaymentSummary,
+        GetOrderStatusSummaryQueryHandler getOrderStatusSummary)
     {
+        _getOrderStatusSummary = getOrderStatusSummary;
         _getOrderPayments = getOrderPayments;
         _getOrderPaymentSummary = getOrderPaymentSummary;
         _createOrder = createOrder;
@@ -160,6 +164,16 @@ public sealed class OrdersController : ControllerBase
         var result = await _processPayment.Handle(
             command,
             cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(GetOrderStatusSummaryResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetOrderStatusSummaryResult>> GetStatusSummary(
+        CancellationToken cancellationToken)
+    {
+        var result = await _getOrderStatusSummary.Handle(new GetOrderStatusSummaryQuery(), cancellationToken);
 
         return Ok(result);
     }

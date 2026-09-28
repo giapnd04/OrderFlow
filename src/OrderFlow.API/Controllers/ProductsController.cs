@@ -2,8 +2,10 @@
 using OrderFlow.API.Models.Products;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Application.Features.Products.DiscontinueProduct;
+using OrderFlow.Application.Features.Products.GetLowStockProducts;
 using OrderFlow.Application.Features.Products.GetProductById;
 using OrderFlow.Application.Features.Products.GetProducts;
+using OrderFlow.Application.Features.Products.ReactivateProduct;
 using OrderFlow.Application.Features.Products.RestockProduct;
 using OrderFlow.Application.Features.Products.UpdateProduct;
 using OrderFlow.Domain.Enums;
@@ -20,6 +22,8 @@ public sealed class ProductsController : ControllerBase
     private readonly UpdateProductCommandHandler _updateProduct;
     private readonly DiscontinueProductCommandHandler _discontinueProduct;
     private readonly RestockProductCommandHandler _restockProduct;
+    private readonly ReactivateProductCommandHandler _reactivateProduct;
+    private readonly GetLowStockProductsQueryHandler _getLowStockProducts;
 
     public ProductsController(
         CreateProductCommandHandler createProduct,
@@ -27,8 +31,12 @@ public sealed class ProductsController : ControllerBase
         GetProductsQueryHandler getProducts,
         UpdateProductCommandHandler updateProduct,
         DiscontinueProductCommandHandler discontinueProduct,
-        RestockProductCommandHandler restockProduct)
+        RestockProductCommandHandler restockProduct,
+        ReactivateProductCommandHandler reactivateProduct,
+        GetLowStockProductsQueryHandler getLowStockProducts)
     {
+        _reactivateProduct = reactivateProduct;
+        _getLowStockProducts = getLowStockProducts;
         _createProduct = createProduct;
         _getProductById = getProductById;
         _getProducts = getProducts;
@@ -112,6 +120,31 @@ public sealed class ProductsController : ControllerBase
         await _discontinueProduct.Handle(new DiscontinueProductCommand(id), cancellationToken);
 
         return NoContent();
+    }
+
+    [HttpPost("{id:int}/reactivate")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Reactivate(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        await _reactivateProduct.Handle(new ReactivateProductCommand(id), cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpGet("low-stock")]
+    [ProducesResponseType(typeof(GetLowStockProductsResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetLowStockProductsResult>> GetLowStock(
+        [FromQuery] int threshold = 10,
+        [FromQuery] int limit = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _getLowStockProducts.Handle(
+            new GetLowStockProductsQuery(threshold, limit),
+            cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpPost("{id:int}/restock")]

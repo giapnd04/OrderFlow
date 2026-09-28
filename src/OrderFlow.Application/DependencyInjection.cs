@@ -20,8 +20,10 @@ using OrderFlow.Application.Features.Payments.GetOrderPaymentSummary;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Application.Features.Products.DiscontinueProduct;
+using OrderFlow.Application.Features.Products.GetLowStockProducts;
 using OrderFlow.Application.Features.Products.GetProductById;
 using OrderFlow.Application.Features.Products.GetProducts;
+using OrderFlow.Application.Features.Products.ReactivateProduct;
 using OrderFlow.Application.Features.Products.RestockProduct;
 using OrderFlow.Application.Features.Products.UpdateProduct;
 
@@ -55,6 +57,8 @@ public static class DependencyInjection
         services.AddScoped<UpdateProductCommandHandler>();
         services.AddScoped<DiscontinueProductCommandHandler>();
         services.AddScoped<RestockProductCommandHandler>();
+        services.AddScoped<ReactivateProductCommandHandler>();
+        services.AddScoped<GetLowStockProductsQueryHandler>();
 
         return services;
     }

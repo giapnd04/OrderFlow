@@ -153,6 +153,14 @@ public class Product : AuditableEntity
         Status = ProductStatus.Discontinued;
     }
 
+    /// <summary>
+    /// Makes a discontinued product orderable again. Idempotent, mirror of <see cref="Discontinue"/>.
+    /// </summary>
+    public void Reactivate()
+    {
+        Status = ProductStatus.Active;
+    }
+
     public void Restock(int quantity)
     {
         ValidateQuantity(quantity, "restock");

@@ -33,6 +33,45 @@ internal sealed class PaymentRepository : IPaymentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<PaymentAttempt?> GetByIdAsync(
+        int paymentAttemptId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.PaymentAttempts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == paymentAttemptId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyCollection<PaymentAttempt> Payments, int TotalCount)> GetPagedAsync(
+        PaymentAttemptStatus? status,
+        string? provider,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _db.PaymentAttempts.AsNoTracking().AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(provider))
+        {
+            query = query.Where(x => x.Provider == provider);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var payments = await query
+            .OrderByDescending(x => x.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (payments, totalCount);
+    }
+
     public async Task<decimal> GetSucceededAmountAsync(
         int orderId,
         CancellationToken cancellationToken = default)

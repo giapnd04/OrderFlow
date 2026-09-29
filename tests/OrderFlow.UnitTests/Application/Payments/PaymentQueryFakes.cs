@@ -47,8 +47,32 @@ internal sealed class FakePaymentRepository : IPaymentRepository
 
     public FakePaymentRepository(params PaymentAttempt[] attempts) => _attempts = attempts.ToList();
 
+    public Task<PaymentAttempt?> GetByIdAsync(int paymentAttemptId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_attempts.FirstOrDefault(a => a.Id == paymentAttemptId));
+
     public Task<IReadOnlyList<PaymentAttempt>> GetByOrderIdAsync(int orderId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<PaymentAttempt>>(_attempts.Where(a => a.OrderId == orderId).OrderBy(a => a.Id).ToList());
+
+    public Task<(IReadOnlyCollection<PaymentAttempt> Payments, int TotalCount)> GetPagedAsync(
+        PaymentAttemptStatus? status, string? provider, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var filtered = _attempts.AsEnumerable();
+
+        if (status.HasValue)
+        {
+            filtered = filtered.Where(a => a.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(provider))
+        {
+            filtered = filtered.Where(a => a.Provider == provider);
+        }
+
+        var all = filtered.OrderByDescending(a => a.Id).ToList();
+        var page = all.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+        return Task.FromResult<(IReadOnlyCollection<PaymentAttempt>, int)>((page, all.Count));
+    }
 
     public Task<decimal> GetSucceededAmountAsync(int orderId, CancellationToken cancellationToken = default)
         => Task.FromResult(_attempts

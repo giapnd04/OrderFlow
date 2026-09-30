@@ -6,6 +6,7 @@ using OrderFlow.Application.Features.Products.GetLowStockProducts;
 using OrderFlow.Application.Features.Products.GetProductById;
 using OrderFlow.Application.Features.Products.GetProducts;
 using OrderFlow.Application.Features.Products.ReactivateProduct;
+using OrderFlow.Application.Features.Products.ReserveStock;
 using OrderFlow.Application.Features.Products.RestockProduct;
 using OrderFlow.Application.Features.Products.UpdateProduct;
 using OrderFlow.Domain.Enums;
@@ -24,6 +25,7 @@ public sealed class ProductsController : ControllerBase
     private readonly RestockProductCommandHandler _restockProduct;
     private readonly ReactivateProductCommandHandler _reactivateProduct;
     private readonly GetLowStockProductsQueryHandler _getLowStockProducts;
+    private readonly ReserveStockCommandHandler _reserveStock;
 
     public ProductsController(
         CreateProductCommandHandler createProduct,
@@ -33,10 +35,12 @@ public sealed class ProductsController : ControllerBase
         DiscontinueProductCommandHandler discontinueProduct,
         RestockProductCommandHandler restockProduct,
         ReactivateProductCommandHandler reactivateProduct,
-        GetLowStockProductsQueryHandler getLowStockProducts)
+        GetLowStockProductsQueryHandler getLowStockProducts,
+        ReserveStockCommandHandler reserveStock)
     {
         _reactivateProduct = reactivateProduct;
         _getLowStockProducts = getLowStockProducts;
+        _reserveStock = reserveStock;
         _createProduct = createProduct;
         _getProductById = getProductById;
         _getProducts = getProducts;
@@ -156,6 +160,20 @@ public sealed class ProductsController : ControllerBase
     {
         var result = await _restockProduct.Handle(
             new RestockProductCommand(id, request.Quantity),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/reserve")]
+    [ProducesResponseType(typeof(ReserveStockResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ReserveStockResult>> ReserveStock(
+        int id,
+        ReserveStockRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _reserveStock.Handle(
+            new ReserveStockCommand(id, request.Quantity),
             cancellationToken);
 
         return Ok(result);

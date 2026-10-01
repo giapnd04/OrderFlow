@@ -57,6 +57,9 @@ public sealed class DeactivateCustomerCommandHandlerTests
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
+        public Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private readonly Customer? _customer;
 
         public FakeCustomerRepository(Customer? customer) => _customer = customer;

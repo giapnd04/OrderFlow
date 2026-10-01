@@ -68,6 +68,26 @@ public class Customer : AuditableEntity
     }
 
     /// <summary>
+    /// Changes the customer's email. Uniqueness across customers is an application-level
+    /// concern (checked via <c>ICustomerRepository.ExistsByEmailAsync</c>), not a Customer
+    /// invariant — a single Customer can't see other customers' emails to check itself.
+    /// </summary>
+    public void ChangeEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new DomainException("Customer requires an email.");
+        }
+
+        if (!IsValidEmail(email))
+        {
+            throw new DomainException("Customer email is not valid.");
+        }
+
+        Email = email.Trim();
+    }
+
+    /// <summary>
     /// Deactivates the customer account. Idempotent — deactivating an already
     /// inactive customer is a no-op rather than an error, since this is a plain
     /// on/off flag, not a workflow with irreversible steps (unlike Order.Status).

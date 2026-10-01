@@ -25,6 +25,9 @@ internal sealed class FakeOrderReportRepository : IOrderReportRepository
 
 internal sealed class ExistsOnlyFakeCustomerRepository : ICustomerRepository
 {
+        public Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
     private readonly HashSet<int> _ids;
 
     public ExistsOnlyFakeCustomerRepository(params int[] ids) => _ids = new HashSet<int>(ids);

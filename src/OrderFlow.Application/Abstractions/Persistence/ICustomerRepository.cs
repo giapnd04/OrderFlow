@@ -24,4 +24,6 @@ public interface ICustomerRepository
     Task<bool> AddAsync(OrderFlow.Domain.Entities.Customer customer, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(OrderFlow.Domain.Entities.Customer customer, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(OrderFlow.Domain.Entities.Customer customer, CancellationToken cancellationToken = default);
 }

@@ -54,6 +54,9 @@ public sealed class GetCustomersQueryHandlerTests
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
+        public Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private readonly List<Customer> _customers;
 
         public FakeCustomerRepository(params Customer[] customers) => _customers = customers.ToList();

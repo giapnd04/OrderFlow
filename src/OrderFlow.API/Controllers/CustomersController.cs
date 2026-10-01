@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Models.Customers;
+using OrderFlow.Application.Features.Customers.ChangeCustomerEmail;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
 using OrderFlow.Application.Features.Customers.DeactivateCustomer;
+using OrderFlow.Application.Features.Customers.DeleteCustomer;
 using OrderFlow.Application.Features.Customers.GetCustomerById;
 using OrderFlow.Application.Features.Customers.GetCustomers;
 using OrderFlow.Application.Features.Customers.ReactivateCustomer;
@@ -21,6 +23,8 @@ public sealed class CustomersController : ControllerBase
     private readonly DeactivateCustomerCommandHandler _deactivateCustomer;
     private readonly ReactivateCustomerCommandHandler _reactivateCustomer;
     private readonly GetCustomerOrderStatsQueryHandler _getCustomerOrderStats;
+    private readonly ChangeCustomerEmailCommandHandler _changeCustomerEmail;
+    private readonly DeleteCustomerCommandHandler _deleteCustomer;
 
     public CustomersController(
         CreateCustomerCommandHandler createCustomer,
@@ -29,7 +33,9 @@ public sealed class CustomersController : ControllerBase
         UpdateCustomerCommandHandler updateCustomer,
         DeactivateCustomerCommandHandler deactivateCustomer,
         ReactivateCustomerCommandHandler reactivateCustomer,
-        GetCustomerOrderStatsQueryHandler getCustomerOrderStats)
+        GetCustomerOrderStatsQueryHandler getCustomerOrderStats,
+        ChangeCustomerEmailCommandHandler changeCustomerEmail,
+        DeleteCustomerCommandHandler deleteCustomer)
     {
         _getCustomerOrderStats = getCustomerOrderStats;
         _createCustomer = createCustomer;
@@ -38,6 +44,8 @@ public sealed class CustomersController : ControllerBase
         _updateCustomer = updateCustomer;
         _deactivateCustomer = deactivateCustomer;
         _reactivateCustomer = reactivateCustomer;
+        _changeCustomerEmail = changeCustomerEmail;
+        _deleteCustomer = deleteCustomer;
     }
 
     [HttpPost]
@@ -113,6 +121,31 @@ public sealed class CustomersController : ControllerBase
         var result = await _getCustomerOrderStats.Handle(new GetCustomerOrderStatsQuery(id), cancellationToken);
 
         return Ok(result);
+    }
+
+    [HttpPut("{id:int}/email")]
+    [ProducesResponseType(typeof(ChangeCustomerEmailResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ChangeCustomerEmailResult>> ChangeEmail(
+        int id,
+        ChangeCustomerEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new ChangeCustomerEmailCommand(id, request.Email);
+
+        var result = await _changeCustomerEmail.Handle(command, cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Delete(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        await _deleteCustomer.Handle(new DeleteCustomerCommand(id), cancellationToken);
+
+        return NoContent();
     }
 
     [HttpPost("{id:int}/deactivate")]

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OrderFlow.Domain.Exceptions;
 using ValidationException = OrderFlow.Application.Exceptions.ValidationException;
 using NotFoundException = OrderFlow.Application.Exceptions.NotFoundException;
+using ConflictException = OrderFlow.Application.Exceptions.ConflictException;
 
 namespace OrderFlow.API.Middleware;
 
@@ -27,6 +28,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             InvalidOrderStateException => (StatusCodes.Status409Conflict, "Invalid order state"),
 
             InsufficientStockException => (StatusCodes.Status409Conflict, "Insufficient stock"),
+
+            ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
 
             DomainException => (StatusCodes.Status400BadRequest, "Validation failed"),
 

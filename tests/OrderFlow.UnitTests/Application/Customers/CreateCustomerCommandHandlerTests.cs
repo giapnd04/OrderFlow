@@ -1,4 +1,4 @@
-﻿using OrderFlow.Application.Abstractions.Persistence;
+using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
 using OrderFlow.Domain.Entities;
@@ -134,6 +134,9 @@ public class CreateCustomerCommandHandlerTests
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
+        public Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private readonly List<Customer> _customers;
 
         public Customer? Saved { get; private set; }

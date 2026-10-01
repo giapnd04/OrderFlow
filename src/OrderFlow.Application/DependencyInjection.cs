@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using OrderFlow.Application.Abstractions.Messaging;
+using OrderFlow.Application.Features.Customers.ChangeCustomerEmail;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
 using OrderFlow.Application.Features.Customers.DeactivateCustomer;
+using OrderFlow.Application.Features.Customers.DeleteCustomer;
 using OrderFlow.Application.Features.Customers.GetCustomerById;
 using OrderFlow.Application.Features.Customers.GetCustomers;
 using OrderFlow.Application.Features.Customers.ReactivateCustomer;
@@ -56,6 +58,8 @@ public static class DependencyInjection
         services.AddScoped<UpdateCustomerCommandHandler>();
         services.AddScoped<DeactivateCustomerCommandHandler>();
         services.AddScoped<ReactivateCustomerCommandHandler>();
+        services.AddScoped<ChangeCustomerEmailCommandHandler>();
+        services.AddScoped<DeleteCustomerCommandHandler>();
         services.AddScoped<CreateProductCommandHandler>();
         services.AddScoped<GetProductByIdQueryHandler>();
         services.AddScoped<GetProductsQueryHandler>();

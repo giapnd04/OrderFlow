@@ -79,4 +79,10 @@ internal sealed class CustomerRepository : ICustomerRepository
     {
         await _db.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
+    {
+        _db.Customers.Remove(customer);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
 }

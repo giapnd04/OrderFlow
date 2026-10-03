@@ -149,42 +149,28 @@ public class GetOrdersQueryHandlerTests
 
     private static List<Order> CreateOrders()
     {
-        var orders = new List<Order>();
+        // customer 1 -> 3 orders (Pending, Paid, Cancelled); customer 2 -> 1 (Pending);
+        // customer 3 -> 1 (Confirmed). Exactly 2 PendingPayment orders overall.
+        var pending1 = Order.Create(1, new[] { OrderItem.Create(1, 1, 100m) });
 
-        orders.Add(Order.Create(
-            1,
-            new[]
-            {
-                OrderItem.Create(1, 1, 100m)
-            }));
+        var paid1 = Order.Create(1, new[] { OrderItem.Create(2, 2, 100m) });
+        paid1.MarkAsPaid();
 
-        orders.Add(Order.Create(
-            1,
-            new[]
-            {
-                OrderItem.Create(2, 2, 100m)
-            }));
+        var cancelled1 = Order.Create(1, new[] { OrderItem.Create(3, 1, 200m) });
+        cancelled1.Cancel();
 
-        orders.Add(Order.Create(
-            2,
-            new[]
-            {
-                OrderItem.Create(3, 1, 200m)
-            }));
+        var pending2 = Order.Create(2, new[] { OrderItem.Create(4, 1, 300m) });
 
-        orders.Add(Order.Create(
-            2,
-            new[]
-            {
-                OrderItem.Create(4, 1, 300m)
-            }));
+        var confirmed3 = Order.Create(3, new[] { OrderItem.Create(5, 1, 400m) });
+        confirmed3.MarkAsPaid();
+        confirmed3.Confirm();
 
-        orders.Add(Order.Create(
-            3,
-            new[]
-            {
-                OrderItem.Create(5, 1, 400m)
-            }));
+        var orders = new List<Order> { pending1, paid1, cancelled1, pending2, confirmed3 };
+
+        for (var i = 0; i < orders.Count; i++)
+        {
+            orders[i].Id = i + 1;
+        }
 
         return orders;
     }

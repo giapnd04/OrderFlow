@@ -1,7 +1,6 @@
 using OrderFlow.Domain.Common;
 using OrderFlow.Domain.Enums;
 using OrderFlow.Domain.Exceptions;
-using System.Net.Mail;
 
 namespace OrderFlow.Domain.Entities;
 
@@ -105,19 +104,5 @@ public class Customer : AuditableEntity
         Status = CustomerStatus.Active;
     }
 
-    private static bool IsValidEmail(string email)
-    {
-        try
-        {
-            var address = new MailAddress(email.Trim());
-
-            return address.Address.Equals(
-                email.Trim(),
-                StringComparison.OrdinalIgnoreCase);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-    }
+    private static bool IsValidEmail(string email) => EmailRules.IsValid(email);
 }

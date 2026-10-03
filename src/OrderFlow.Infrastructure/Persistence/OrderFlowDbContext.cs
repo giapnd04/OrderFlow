@@ -29,6 +29,10 @@ public class OrderFlowDbContext : DbContext
 
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
 
+    public DbSet<User> Users => Set<User>();
+
+    public DbSet<EmailVerificationOtp> EmailVerificationOtps => Set<EmailVerificationOtp>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.AddInterceptors(new AuditableEntityInterceptor());

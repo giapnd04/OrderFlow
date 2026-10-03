@@ -67,9 +67,8 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
         if (command.Status == PaymentAttemptStatus.Succeeded)
         {
+            // AddAsync above already persisted this attempt, so the repository sum includes it.
             var succeededAmount = await _payments.GetSucceededAmountAsync(order.Id, cancellationToken);
-
-            succeededAmount += command.Amount;
 
             if (succeededAmount >= order.TotalAmount)
             {
@@ -90,8 +89,6 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
                     }
 
                     product.FulfillReservation(item.Quantity);
-
-                   // product.DecreaseStock(item.Quantity);
                 }
 
                 order.MarkAsPaid();

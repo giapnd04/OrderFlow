@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using OrderFlow.API.Authorization;
 using OrderFlow.API.Models.Products;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Application.Features.Products.DiscontinueProduct;
@@ -50,6 +52,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(
         typeof(CreateProductResult),
         StatusCodes.Status201Created)]
@@ -73,6 +76,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = Policies.Authenticated)]
     [ProducesResponseType(typeof(GetProductByIdResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetProductByIdResult>> GetById(
         int id,
@@ -86,6 +90,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = Policies.Authenticated)]
     [ProducesResponseType(typeof(GetProductsResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetProductsResult>> GetProducts(
         [FromQuery] int pageNumber = 1,
@@ -102,6 +107,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(typeof(UpdateProductResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<UpdateProductResult>> Update(
         int id,
@@ -116,6 +122,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost("{id:int}/discontinue")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Discontinue(
         int id,
@@ -127,6 +134,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost("{id:int}/reactivate")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Reactivate(
         int id,
@@ -138,6 +146,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpGet("low-stock")]
+    [Authorize(Policy = Policies.Staff)]
     [ProducesResponseType(typeof(GetLowStockProductsResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetLowStockProductsResult>> GetLowStock(
         [FromQuery] int threshold = 10,
@@ -152,6 +161,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost("{id:int}/restock")]
+    [Authorize(Policy = Policies.Warehouse)]
     [ProducesResponseType(typeof(RestockProductResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<RestockProductResult>> Restock(
         int id,
@@ -166,6 +176,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost("{id:int}/reserve")]
+    [Authorize(Policy = Policies.Warehouse)]
     [ProducesResponseType(typeof(ReserveStockResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReserveStockResult>> ReserveStock(
         int id,

@@ -1,5 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using OrderFlow.Application.Abstractions.Messaging;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using OrderFlow.Application.Behaviors;
+using OrderFlow.Application.Features.Auth.ConfirmEmailOtp;
+using OrderFlow.Application.Features.Auth.CreateStaffUser;
+using OrderFlow.Application.Features.Auth.Login;
+using OrderFlow.Application.Features.Auth.Register;
 using OrderFlow.Application.Features.Customers.ChangeCustomerEmail;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
 using OrderFlow.Application.Features.Customers.DeactivateCustomer;
@@ -38,6 +43,18 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.TryAddSingleton(TimeProvider.System);
+
+        services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+
+        // Auth handlers go through the validation pipeline: controllers depend on
+        // ICommandHandler<,> and get the decorated instance. The older handlers below are
+        // injected as concrete types and still validate inline.
+        services.AddValidatedCommandHandler<RegisterCommand, RegisterResult, RegisterCommandHandler>();
+        services.AddValidatedCommandHandler<LoginCommand, LoginResult, LoginCommandHandler>();
+        services.AddValidatedCommandHandler<ConfirmEmailOtpCommand, ConfirmEmailOtpResult, ConfirmEmailOtpCommandHandler>();
+        services.AddValidatedCommandHandler<CreateStaffUserCommand, CreateStaffUserResult, CreateStaffUserCommandHandler>();
+
         services.AddScoped<CreateOrderCommandHandler>();
         services.AddScoped<GetOrderByIdQueryHandler>();
         services.AddScoped<CancelOrderCommandHandler>();

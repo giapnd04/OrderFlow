@@ -33,7 +33,7 @@ public class CreateCustomerCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NameIsEmpty_ThrowsValidation()
+    public async Task Handle_NameIsEmpty_ThrowsDomainException()
     {
         var customers = new FakeCustomerRepository();
         var handler = new CreateCustomerCommandHandler(customers);
@@ -43,7 +43,7 @@ public class CreateCustomerCommandHandlerTests
             "john@example.com",
             null);
 
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<DomainException>(
             () => handler.Handle(command));
     }
 
@@ -134,6 +134,9 @@ public class CreateCustomerCommandHandlerTests
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
+        public Task<Customer?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         public Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for this test.");
 

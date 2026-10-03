@@ -32,6 +32,9 @@ public sealed class GetCustomerByIdQueryHandlerTests
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
+        public Task<Customer?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         public Task DeleteAsync(Customer customer, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for this test.");
 

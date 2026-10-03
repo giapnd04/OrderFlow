@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OrderFlow.API.Authorization;
 using OrderFlow.Application.Features.Payments.GetPaymentById;
 using OrderFlow.Application.Features.Payments.GetPayments;
 using OrderFlow.Domain.Enums;
@@ -21,6 +23,7 @@ public sealed class PaymentsController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(typeof(GetPaymentByIdResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetPaymentByIdResult>> GetById(
         int id,
@@ -32,6 +35,7 @@ public sealed class PaymentsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(typeof(GetPaymentsResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetPaymentsResult>> GetPayments(
         [FromQuery] int pageNumber = 1,

@@ -93,6 +93,9 @@ public sealed class ChangeCustomerEmailCommandHandlerTests
 
     private sealed class FakeCustomerRepository : ICustomerRepository
     {
+        public Task<Customer?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private readonly Customer? _customer;
 
         public bool EmailExists { get; set; }

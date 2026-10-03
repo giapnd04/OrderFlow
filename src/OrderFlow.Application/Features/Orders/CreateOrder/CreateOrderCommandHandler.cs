@@ -10,10 +10,8 @@ namespace OrderFlow.Application.Features.Orders.CreateOrder;
 /// Coordinates the CreateOrder use case (SDS §5, §10):
 /// validate the request, confirm the customer exists, load and validate the ordered
 /// products, snapshot their prices onto new order lines, let the <see cref="Order"/>
-/// aggregate build itself (and compute its total), then persist it.
-///
-/// Out of scope for this slice: stock check / reservation (schema v1 decrements stock
-/// on payment success and accepts the oversell gap) and any payment handling.
+/// aggregate build itself (and compute its total), reserve stock for each line
+/// (ADR-004), then persist it. Payment handling is a separate use case.
 /// </summary>
 public sealed class CreateOrderCommandHandler
     : ICommandHandler<CreateOrderCommand, CreateOrderResult>

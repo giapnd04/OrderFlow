@@ -81,6 +81,57 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrderFlow.Domain.Entities.EmailVerificationOtp", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_email_verification_otps");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_email_verification_otps_user_id");
+
+                    b.ToTable("email_verification_otps", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_email_verification_otps_code", "LEN([code]) = 6 AND [code] NOT LIKE '%[^0-9]%'");
+                        });
+                });
+
             modelBuilder.Entity("OrderFlow.Domain.Entities.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -335,6 +386,83 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrderFlow.Domain.Entities.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("int")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("IsEmailVerified")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_email_verified");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)")
+                        .HasColumnName("password_hash");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("role");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.HasKey("Id")
+                        .HasName("pk_users");
+
+                    b.HasIndex("CustomerId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_customer_id")
+                        .HasFilter("[customer_id] IS NOT NULL");
+
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_email");
+
+                    b.ToTable("users", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_users_customer_link_role", "[customer_id] IS NULL OR [role] = N'Customer'");
+
+                            t.HasCheckConstraint("ck_users_role", "[role] COLLATE Latin1_General_CS_AS IN (N'Customer', N'Sales', N'Warehouse', N'Administrator')");
+                        });
+                });
+
+            modelBuilder.Entity("OrderFlow.Domain.Entities.EmailVerificationOtp", b =>
+                {
+                    b.HasOne("OrderFlow.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_email_verification_otps_users_user_id");
+                });
+
             modelBuilder.Entity("OrderFlow.Domain.Entities.Order", b =>
                 {
                     b.HasOne("OrderFlow.Domain.Entities.Customer", null)
@@ -370,6 +498,15 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_payment_attempts_orders_order_id");
+                });
+
+            modelBuilder.Entity("OrderFlow.Domain.Entities.User", b =>
+                {
+                    b.HasOne("OrderFlow.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_users_customers_customer_id");
                 });
 
             modelBuilder.Entity("OrderFlow.Domain.Entities.Order", b =>

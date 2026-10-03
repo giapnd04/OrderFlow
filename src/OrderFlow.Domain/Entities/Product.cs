@@ -89,21 +89,6 @@ public class Product : AuditableEntity
         Price = price;
     }
 
-    //public void DecreaseStock(int quantity)
-    //{
-    //    if (quantity <= 0)
-    //    {
-    //        throw new DomainException("Quantity to decrease must be greater than zero.");
-    //    }
-
-    //    if (quantity > StockQuantity)
-    //    {
-    //        throw new InsufficientStockException($"Insufficient stock for product '{Sku}'.");
-    //    }
-
-    //    StockQuantity -= quantity;
-    //}
-
     public void Reserve(int quantity)
     {
 

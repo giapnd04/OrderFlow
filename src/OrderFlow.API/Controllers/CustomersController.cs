@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using OrderFlow.API.Authorization;
 using OrderFlow.API.Models.Customers;
 using OrderFlow.Application.Features.Customers.ChangeCustomerEmail;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
@@ -49,6 +51,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(
         typeof(CreateCustomerResult),
         StatusCodes.Status201Created)]
@@ -71,6 +74,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = Policies.Staff)]
     [ProducesResponseType(typeof(GetCustomerByIdResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetCustomerByIdResult>> GetById(
         int id,
@@ -84,6 +88,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = Policies.Staff)]
     [ProducesResponseType(typeof(GetCustomersResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetCustomersResult>> GetCustomers(
         [FromQuery] int pageNumber = 1,
@@ -99,6 +104,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(typeof(UpdateCustomerResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<UpdateCustomerResult>> Update(
         int id,
@@ -113,6 +119,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpGet("{id:int}/order-stats")]
+    [Authorize(Policy = Policies.Staff)]
     [ProducesResponseType(typeof(GetCustomerOrderStatsResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<GetCustomerOrderStatsResult>> GetOrderStats(
         int id,
@@ -124,6 +131,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:int}/email")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(typeof(ChangeCustomerEmailResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<ChangeCustomerEmailResult>> ChangeEmail(
         int id,
@@ -138,6 +146,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = Policies.AdminOnly)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(
         int id,
@@ -149,6 +158,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpPost("{id:int}/deactivate")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Deactivate(
         int id,
@@ -162,6 +172,7 @@ public sealed class CustomersController : ControllerBase
     }
 
     [HttpPost("{id:int}/reactivate")]
+    [Authorize(Policy = Policies.Sales)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Reactivate(
         int id,

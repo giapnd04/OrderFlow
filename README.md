@@ -103,6 +103,7 @@ dotnet test
 
 - **Unit tests** cover the application handlers (auth, customers, products, orders, payments), validation pipeline and domain rules.
 - **Integration tests** exercise the real HTTP pipeline, including a test that fails if any endpoint is left without an authorization policy.
+- **Database tests** run against a real SQL Server with the production migrations applied: a Testcontainers container when Docker is available, or the database in `ORDERFLOW_TEST_CONNECTION` (its name must contain "Test", e.g. `Server=(localdb)\MSSQLLocalDB;Database=OrderFlow_IntegrationTests;Trusted_Connection=True;TrustServerCertificate=True`). See `docs/06-testing.md`.
 
 ## Documentation
 

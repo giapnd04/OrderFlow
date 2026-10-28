@@ -142,7 +142,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-03. Không có integration test chạm SQL Server thật
 
-- OF-02 · P0 · Open
+- OF-02 · P0 · In progress (28/10: đã có `SqlServerFixture` và 3 test CHECK constraint cho products, xem mục 6)
 - Vấn đề: chưa có fixture database, cũng chưa có thư mục test cho Orders và Products.
 - Bằng chứng: `tests/OrderFlow.IntegrationTests/Security/ApiFactory.cs` dùng connection string không kết nối được. Thư mục integration chỉ có `Security/`.
 
@@ -211,3 +211,59 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 ## 5. Thứ tự xử lý đề xuất
 
 Làm G-03 (hạ tầng test với SQL Server thật) trước tiên, vì G-01, G-02, G-04 và G-05 đều cần nó để có bằng chứng. Sau đó làm G-01, rồi G-02, rồi G-04, theo lịch tuần 1.
+
+---
+
+## 6. Integration test với SQL Server thật (28/10/2026)
+
+Từ ngày 2, test có thể chạy trên một SQL Server thật, đã áp đủ 7 migration của production. Nhờ vậy test kiểm được những thứ mà fake repository hay EF InMemory không kiểm được: CHECK constraint, unique index, foreign key, rowversion và transaction.
+
+### Cách hoạt động
+
+Fixture nằm ở `tests/OrderFlow.IntegrationTests/Fixtures/SqlServerFixture.cs` và chọn database theo thứ tự sau:
+
+1. Nếu có biến môi trường `ORDERFLOW_TEST_CONNECTION`, fixture dùng chuỗi kết nối đó. Đây là cách chạy trên máy chưa có Docker, ví dụ dùng LocalDB.
+2. Nếu không có biến đó, fixture dùng Testcontainers để chạy một container `mcr.microsoft.com/mssql/server:2022-latest`. Cách này dùng khi đã cài Docker và khi chạy CI.
+
+Sau khi kết nối, fixture gọi `Database.MigrateAsync()` để dựng schema bằng chính các migration thật, không dùng `EnsureCreated`.
+
+Dữ liệu được reset trước mỗi test bằng Respawn. Respawn xoá mọi dòng theo đúng thứ tự foreign key, nhưng giữ nguyên schema và bảng `__EFMigrationsHistory`.
+
+Vì Respawn xoá sạch dữ liệu, fixture từ chối chạy nếu tên database trong `ORDERFLOW_TEST_CONNECTION` không chứa chữ "Test". Như vậy không bao giờ xoá nhầm database dev `OrderFlow`.
+
+Mọi class test cần database đều gắn `[Collection("SqlServer")]`. Các class này dùng chung một fixture và chạy tuần tự, nên không giẫm lên dữ liệu của nhau.
+
+### Cách chạy trên máy không có Docker (LocalDB)
+
+PowerShell:
+
+```powershell
+$env:ORDERFLOW_TEST_CONNECTION = "Server=(localdb)\MSSQLLocalDB;Database=OrderFlow_IntegrationTests;Trusted_Connection=True;TrustServerCertificate=True"
+dotnet test OrderFlow.sln
+```
+
+Database `OrderFlow_IntegrationTests` sẽ được tự tạo ở lần chạy đầu tiên. Nếu không đặt biến này và cũng không có Docker, 3 test database sẽ fail với thông báo hướng dẫn hai cách trên. Các test khác vẫn chạy bình thường.
+
+### Test đã có
+
+File `tests/OrderFlow.IntegrationTests/Products/ProductCheckConstraintTests.cs` có 3 test. Các test này insert bằng SQL thô, vì `Product.Create` và `Product.Reserve` đã chặn các giá trị sai ở tầng domain. Mục đích là chứng minh database là lớp phòng thủ cuối cùng, kể cả khi code ứng dụng bị bỏ qua.
+
+- Insert product hợp lệ thì thành công. Đây là test đối chứng, để chắc rằng hai test sau fail vì constraint chứ không phải vì câu SQL sai.
+- Insert product có `stock_quantity = -1` thì SQL Server từ chối: lỗi 547, constraint `ck_products_stock_quantity`.
+- Insert product có `reserved_quantity` (6) lớn hơn `stock_quantity` (5) thì SQL Server từ chối: lỗi 547, constraint `ck_products_reserved_not_exceed_stock`.
+
+### Kết quả đo 28/10/2026
+
+Chạy với LocalDB, kết quả là 312 test, tất cả pass:
+
+- Unit: 255 pass.
+- Integration: 57 pass, gồm 54 test security cũ và 3 test mới.
+
+Chạy lại lần thứ hai vẫn xanh. Điều đó cho thấy Respawn reset đúng dữ liệu và migration không bị áp lại.
+
+### Việc còn lại của G-03 / OF-02
+
+- Ghi ADR-009 về lựa chọn Testcontainers và LocalDB.
+- Viết test unique SKU trùng thì API trả 409.
+- Ghi chú ít nhất 2 lỗi mà fake repository không phát hiện được.
+- Chạy được trong CI. Phần này phụ thuộc OF-11.

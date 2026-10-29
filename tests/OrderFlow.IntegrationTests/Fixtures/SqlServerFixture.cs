@@ -1,8 +1,15 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using OrderFlow.Application;
+using OrderFlow.Infrastructure;
 using OrderFlow.Infrastructure.Persistence;
+using OrderFlow.IntegrationTests.Security;
 using Respawn;
 using Testcontainers.MsSql;
+using Xunit.Abstractions;
 
 namespace OrderFlow.IntegrationTests.Fixtures;
 
@@ -44,6 +51,39 @@ public sealed class SqlServerFixture : IAsyncLifetime
             .Options;
 
         return new OrderFlowDbContext(options);
+    }
+
+    // The production composition root (AddApplication + AddInfrastructure) pointed at the test
+    // database, so handlers resolve with their real repositories and ITransactionRunner.
+    public ServiceProvider CreateServiceProvider(ITestOutputHelper? sqlLog = null, params IInterceptor[] interceptors)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:OrderFlow"] = ConnectionString,
+                ["Jwt:SigningKey"] = ApiFactory.SigningKey,
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddApplication();
+        services.AddInfrastructure(configuration);
+
+        services.ConfigureDbContext<OrderFlowDbContext>(options =>
+        {
+            options.AddInterceptors(interceptors);
+
+            if (sqlLog is not null)
+            {
+                options.EnableSensitiveDataLogging()
+                    .LogTo(sqlLog.WriteLine, [RelationalEventId.CommandExecuted, RelationalEventId.TransactionStarted,
+                        RelationalEventId.TransactionCommitted, RelationalEventId.TransactionRolledBack,
+                        RelationalEventId.TransactionDisposed]);
+            }
+        });
+
+        return services.BuildServiceProvider(validateScopes: true);
     }
 
     /// <summary>Deletes all rows (FK-ordered) but keeps the schema and migration history.</summary>

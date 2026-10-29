@@ -124,7 +124,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-01. ProcessPayment commit hai lần, không có transaction
 
-- OF-03 · P0 · Open
+- OF-03 · P0 · Closed (29/10: bọc trong ITransactionRunner, xem mục 7 và ADR-006)
 - Vấn đề: handler ghi payment và cập nhật order bằng hai lần commit riêng, không có transaction bao ngoài. Nếu lần commit thứ hai lỗi, payment `Succeeded` đã được lưu nhưng order vẫn ở `PendingPayment`, và reservation chưa được fulfill.
 - Bằng chứng:
   - `ProcessPaymentCommandHandler.cs:66` gọi `_payments.AddAsync`, hàm này gọi `SaveChangesAsync` ngay tại `PaymentRepository.cs:22`.
@@ -267,3 +267,40 @@ Chạy lại lần thứ hai vẫn xanh. Điều đó cho thấy Respawn reset �
 - Viết test unique SKU trùng thì API trả 409.
 - Ghi chú ít nhất 2 lỗi mà fake repository không phát hiện được.
 - Chạy được trong CI. Phần này phụ thuộc OF-11.
+
+---
+
+## 7. Transaction và fault injection (29/10/2026)
+
+Mục này đóng gap G-01. Cách làm: cố tình làm một lần ghi bị lỗi rồi xem dữ liệu còn lại trong database.
+
+### Công cụ
+
+File `tests/OrderFlow.IntegrationTests/Fixtures/FaultInjection.cs` có hai interceptor của EF Core:
+
+- `FailOnSaveChangesInterceptor(n)` làm lần gọi SaveChanges thứ n bị lỗi, trước khi gửi SQL. Nó mô phỏng việc lần ghi thứ hai của một use case bị hỏng giữa chừng.
+- `FailOnCommandInterceptor("...")` làm lỗi lệnh SQL đầu tiên có chứa đoạn text cho trước. Các lệnh trước đó trong cùng lần SaveChanges đã chạy rồi, nên đây là lỗi xảy ra giữa một lần lưu.
+
+`SqlServerFixture.CreateServiceProvider` dựng DI bằng đúng `AddApplication()` và `AddInfrastructure()` của production. Vì vậy handler trong test là handler thật, dùng repository thật và `ITransactionRunner` thật. Hàm này cũng ghi log SQL và log transaction ra output của test.
+
+### Test và kết quả
+
+ProcessPaymentAtomicityTests có 2 test.
+
+- Happy path: thanh toán đủ tiền thì order thành Paid, stock giảm 2, reserved về 0.
+- Lỗi ở lần lưu thứ 2: không được còn payment nào. Order vẫn PendingPayment, stock vẫn 10, reserved vẫn 2.
+
+Trước khi sửa, test lỗi chạy đỏ, với message: "Expected the payment to roll back with the failed order update, but found 1 payment row(s) while the order is still PendingPayment." Đây chính là bằng chứng của G-01 trên SQL Server thật.
+
+Sau khi bọc handler trong `ITransactionRunner`, test chuyển sang xanh. Log SQL của test lỗi cho thấy thứ tự: Began transaction, INSERT INTO payment_attempts, rồi Disposing transaction mà không có Committed. Transaction bị huỷ mà không commit thì SQL Server rollback. Ở happy path, log có thêm UPDATE orders, UPDATE products và Committed transaction.
+
+CreateOrderRollbackTests có 1 test. Test làm lỗi lệnh INSERT INTO order_items. Lúc đó INSERT INTO orders và UPDATE products (giữ chỗ) đã chạy xong. Kết quả: database không còn order, không còn order item, reserved vẫn 0. Test này xanh ngay mà không cần sửa code. Nó chứng minh implicit transaction của một lần SaveChanges là đủ khi use case chỉ lưu một lần.
+
+Kết luận, đây cũng là câu trả lời cho câu phỏng vấn "implicit transaction đủ khi nào": một lần SaveChanges thì đủ; từ hai lần trở lên thì phải có transaction bao ngoài. Chi tiết xem ADR-006.
+
+### Số test đo 29/10/2026
+
+Chạy với LocalDB, kết quả là 315 test, tất cả pass. Chạy lại lần hai vẫn xanh.
+
+- Unit: 255 pass. 9 test cũ của ProcessPayment vẫn xanh, sau khi truyền thêm FakeTransactionRunner.
+- Integration: 60 pass, gồm 57 test cũ và 3 test mới.

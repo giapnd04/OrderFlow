@@ -4,6 +4,7 @@ using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Domain.Entities;
 using OrderFlow.Domain.Enums;
 using OrderFlow.Domain.Exceptions;
+using OrderFlow.UnitTests.Application.Auth;
 
 namespace OrderFlow.UnitTests.Application.Payments;
 
@@ -26,7 +27,7 @@ public sealed class ProcessPaymentCommandHandlerTests
 
     private static ProcessPaymentCommandHandler HandlerFor(
         FakeOrderRepository orders, FakePaymentRepository payments, params Product[] products)
-        => new(orders, payments, new FakeProductRepository(products));
+        => new(orders, payments, new FakeProductRepository(products), new FakeTransactionRunner());
 
     [Fact]
     public async Task Handle_SingleSucceededPaymentCoveringTotal_MarksOrderPaidAndFulfillsReservation()

@@ -12,15 +12,18 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
     private readonly IOrderRepository _orders;
     private readonly IPaymentRepository _payments;
     private readonly IProductRepository _products;
+    private readonly ITransactionRunner _transactions;
 
     public ProcessPaymentCommandHandler(
         IOrderRepository orders,
         IPaymentRepository payments,
-        IProductRepository products)
+        IProductRepository products,
+        ITransactionRunner transactions)
     {
         _orders = orders;
         _payments = payments;
         _products = products;
+        _transactions = transactions;
     }
 
     public async Task<ProcessPaymentResult> Handle(
@@ -42,6 +45,21 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
             throw new ValidationException("Payment provider is required.");
         }
 
+        ProcessPaymentResult? result = null;
+
+        // The payment insert and the order/product update are two SaveChanges calls; one
+        // transaction makes them commit or roll back together (ADR-006).
+        await _transactions.ExecuteAsync(
+            async token => result = await RecordPaymentAsync(command, token),
+            cancellationToken);
+
+        return result!;
+    }
+
+    private async Task<ProcessPaymentResult> RecordPaymentAsync(
+        ProcessPaymentCommand command,
+        CancellationToken cancellationToken)
+    {
         var order = await _orders.GetByIdForUpdateAsync(command.OrderId, cancellationToken);
 
         if (order is null)

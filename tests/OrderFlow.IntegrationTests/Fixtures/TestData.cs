@@ -9,12 +9,13 @@ public static class TestData
     public const decimal UnitPrice = 10m;
     public const decimal OrderTotal = OrderedQuantity * UnitPrice;
 
-    public static async Task<(int CustomerId, int ProductId)> SeedCustomerAndProductAsync(SqlServerFixture sql)
+    public static async Task<(int CustomerId, int ProductId)> SeedCustomerAndProductAsync(
+        SqlServerFixture sql, int stockQuantity = StockQuantity)
     {
         await using var db = sql.CreateDbContext();
 
         var customer = Customer.Create("Test Customer", "customer@example.com");
-        var product = Product.Create("SKU-TX-1", "Transaction probe", UnitPrice, StockQuantity);
+        var product = Product.Create("SKU-TX-1", "Transaction probe", UnitPrice, stockQuantity);
 
         db.AddRange(customer, product);
         await db.SaveChangesAsync();

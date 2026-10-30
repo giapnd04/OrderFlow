@@ -148,7 +148,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-04. Optimistic concurrency chưa được kiểm chứng
 
-- OF-04 · P0 · Open
+- OF-04 · P0 · In progress, phần 1 (30/10: test CreateOrder song song đã chứng minh không oversell, xem mục 8)
 - Vấn đề: rowversion và việc map lỗi sang 409 mới chỉ có trong code. Chưa có test chạy đồng thời trên SQL Server thật, nên chưa chứng minh được hệ thống không oversell.
 - Bằng chứng: `ProductConfiguration.cs:47` và `OrderConfiguration.cs:33` khai báo `IsRowVersion`. `GlobalExceptionHandler.cs:100` map `DbUpdateConcurrencyException` sang 409.
 
@@ -304,3 +304,58 @@ Chạy với LocalDB, kết quả là 315 test, tất cả pass. Chạy lại l�
 
 - Unit: 255 pass. 9 test cũ của ProcessPayment vẫn xanh, sau khi truyền thêm FakeTransactionRunner.
 - Integration: 60 pass, gồm 57 test cũ và 3 test mới.
+
+---
+
+## 8. Concurrency: nhiều người cùng mua món cuối cùng (30/10/2026)
+
+Mục này là phần 1 của G-04 / OF-04. Câu hỏi cần trả lời: khi nhiều request CreateOrder cùng lúc tranh nhau một product chỉ còn 1 cái, hệ thống có bán quá số hàng không?
+
+### Cách test
+
+File `tests/OrderFlow.IntegrationTests/Orders/CreateOrderConcurrencyTests.cs`.
+
+- Seed 1 customer và 1 product có `stock_quantity = 1`.
+- Dựng API thật bằng `SqlApiFactory`, nối vào SQL Server của test. Mỗi request HTTP có DI scope riêng, nên có DbContext riêng, giống như các request thật từ nhiều người dùng.
+- Bắn N lệnh `POST /api/orders` cùng lúc, với N = 10 và N = 50, mỗi lệnh mua 1 cái. Mọi request cùng chờ một "cổng xuất phát" (TaskCompletionSource) rồi mới được thả ra một lượt, để chúng thật sự chồng lên nhau trong database.
+- Kiểm tra:
+  - Đúng 1 response 201, N − 1 response 409, không có response nào khác (ví dụ 500 do deadlock).
+  - Database có đúng 1 order, `reserved_quantity = 1` và `reserved_quantity <= stock_quantity`.
+
+Rate limit global 300 request/phút theo IP được nâng lên trong factory này. Mọi request của test đều đến từ cùng một "IP", nên nếu không nâng thì rate limit sẽ làm sai kết quả.
+
+### Kết quả đo thật: chạy lặp 20 lần
+
+Cả 20 lần đều pass. Không lần nào bán quá, không lần nào có response 500.
+
+Với N = 10, cả 20 lần đều cho cùng kết quả: 1 request thành công, 9 request nhận 409 "Concurrent modification", 0 request nhận 409 "Insufficient stock".
+
+Với N = 50, cả 20 lần đều có 1 request thành công. 49 request còn lại chia thành hai loại 409:
+- "Concurrent modification": ít nhất 10, nhiều nhất 19, trung bình 13,5.
+- "Insufficient stock": phần còn lại, từ 30 đến 39.
+
+Số "Concurrent modification" ở 20 lần chạy N = 50 lần lượt là: 13, 14, 16, 12, 13, 13, 19, 10, 13, 16, 13, 11, 13, 14, 12, 14, 13, 12, 13, 16.
+
+### Vì sao có hai loại 409
+
+Mỗi request CreateOrder đọc product, gọi `Reserve(1)` trong bộ nhớ, rồi SaveChanges. Lệnh SaveChanges sinh ra câu `UPDATE products ... WHERE id = @id AND row_version = @old`.
+
+"Concurrent modification" xảy ra khi request đọc product trước lúc người thắng commit. Lúc đó request vẫn thấy còn 1 cái, nên `Reserve` thành công trong bộ nhớ. Nhưng khi UPDATE, `row_version` đã đổi, câu lệnh cập nhật 0 dòng, và EF ném `DbUpdateConcurrencyException`. Rowversion là thứ chặn được oversell ở đây.
+
+"Insufficient stock" xảy ra khi request đọc product sau lúc người thắng commit. Lúc đó request thấy `reserved_quantity = 1`, nên `Product.Reserve` từ chối ngay trong domain mà không cần ghi gì.
+
+Với N = 10, cả 10 request đều kịp đọc trước khi có ai commit, nên toàn bộ 9 lỗi đều do rowversion chặn. Với N = 50, các request đến muộn đọc phải dữ liệu đã commit, nên phần lớn bị domain chặn.
+
+Cả hai trường hợp đều trả 409 và không ghi sai dữ liệu. Điều này cho thấy có hai lớp bảo vệ: kiểm tra trong domain cho dữ liệu đã thấy, và rowversion cho cuộc đua giữa lúc đọc và lúc ghi. Nếu chỉ có lớp domain thì 9 request của N = 10 đều đã đặt được hàng, tức là bán quá.
+
+### Số test đo 30/10/2026
+
+Chạy với LocalDB, kết quả là 317 test, tất cả pass.
+
+- Unit: 255.
+- Integration: 62, gồm 60 test cũ và 2 case mới (N = 10 và N = 50).
+
+### Việc còn lại của G-04 (Ngày 5)
+
+- So sánh rowversion với hai cách khác: conditional UPDATE (`UPDATE ... SET reserved = reserved + 1 WHERE stock - reserved >= 1`) và khoá bi quan `UPDLOCK`.
+- Quyết định có tự retry khi gặp "Concurrent modification" hay không. Hiện tại người dùng nhận 409 dù lúc đó có thể vẫn còn hàng (trường hợp tồn kho lớn hơn 1).

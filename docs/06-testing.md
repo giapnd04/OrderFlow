@@ -148,7 +148,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-04. Optimistic concurrency chưa được kiểm chứng
 
-- OF-04 · P0 · In progress, phần 1 (30/10: test CreateOrder song song đã chứng minh không oversell, xem mục 8)
+- OF-04 · P0 · Closed (30/10: chứng minh không oversell, mục 8. 31/10: đo 4 phương án, viết ADR-007, mục 9; chuyển CreateOrder sang UPDLOCK, mục 10)
 - Vấn đề: rowversion và việc map lỗi sang 409 mới chỉ có trong code. Chưa có test chạy đồng thời trên SQL Server thật, nên chưa chứng minh được hệ thống không oversell.
 - Bằng chứng: `ProductConfiguration.cs:47` và `OrderConfiguration.cs:33` khai báo `IsRowVersion`. `GlobalExceptionHandler.cs:100` map `DbUpdateConcurrencyException` sang 409.
 
@@ -359,3 +359,113 @@ Chạy với LocalDB, kết quả là 317 test, tất cả pass.
 
 - So sánh rowversion với hai cách khác: conditional UPDATE (`UPDATE ... SET reserved = reserved + 1 WHERE stock - reserved >= 1`) và khoá bi quan `UPDLOCK`.
 - Quyết định có tự retry khi gặp "Concurrent modification" hay không. Hiện tại người dùng nhận 409 dù lúc đó có thể vẫn còn hàng (trường hợp tồn kho lớn hơn 1).
+
+---
+
+## 9. So sánh các cách chống oversell (31/10/2026)
+
+Mục này là phần 2 của G-04 / OF-04. Mục 8 đã chứng minh rowversion không bán quá. Mục này trả lời câu hỏi tiếp theo: các cách khác thì sao, và rowversion có từ chối nhầm người mua trong lúc vẫn còn hàng không?
+
+### Cách thử
+
+Bốn cách làm cùng một bước "giữ chỗ 1 sản phẩm và tạo order" được cài trong project test (`tests/OrderFlow.IntegrationTests/Orders/ReservationStrategies.cs`). Code production không đổi.
+
+1. RowVersion: giống production hiện tại. Đọc product, gọi `Product.Reserve`, lưu, để rowversion chặn lần ghi dựa trên dữ liệu cũ.
+2. RowVersionRetry3: giống RowVersion, nhưng khi thua cuộc đua rowversion thì đọc lại và thử thêm, tối đa 3 lần. Lỗi hết hàng thật thì không thử lại.
+3. ConditionalUpdate: một câu `UPDATE products SET reserved_quantity = reserved_quantity + 1 WHERE id = @id AND stock_quantity - reserved_quantity >= 1`. Cập nhật 0 dòng nghĩa là hết hàng.
+4. UpdLock: trong transaction, đọc product bằng `WITH (UPDLOCK, ROWLOCK)` rồi mới gọi `Product.Reserve` và lưu. Người khác phải chờ khoá.
+
+File `ReservationStrategyComparisonTests.cs` cho cả 4 cách chạy qua 3 kịch bản, tổng cộng 12 case:
+- Tồn kho 1, N = 10.
+- Tồn kho 1, N = 50.
+- Tồn kho 10, N = 50.
+
+Mỗi case chạy một vòng làm nóng trước, sau đó mới chạy vòng đo thời gian. Assert chung cho mọi cách: không bán quá tồn kho, số order bằng số giữ chỗ thành công, và `reserved_quantity <= stock_quantity`. Riêng ConditionalUpdate và UpdLock còn phải bán đúng min(tồn kho, N).
+
+### Kết quả đo thật: chạy lặp 20 lần, cả 20 lần pass
+
+Thời gian ghi dưới đây là trung vị của 20 lần, tính cho cả N request chạy xong.
+
+Tồn kho 1, N = 10: cả 4 cách đều bán đúng 1 cái ở mọi lần chạy.
+- RowVersion: 4 ms.
+- RowVersionRetry3: 6 ms.
+- ConditionalUpdate: 4,5 ms.
+- UpdLock: 6 ms.
+
+Tồn kho 1, N = 50: cả 4 cách đều bán đúng 1 cái ở mọi lần chạy.
+- RowVersion: 22 ms.
+- RowVersionRetry3: 33,5 ms.
+- ConditionalUpdate: 26 ms.
+- UpdLock: 21 ms.
+
+Tồn kho 10, N = 50: các cách khác nhau rõ rệt.
+- RowVersion chỉ bán được 1 đến 3 cái, trung bình 1,4, mất 24 ms. Khoảng 48 người nhận 409 dù kho vẫn còn 8 đến 9 cái.
+- RowVersionRetry3 bán được 7 đến 9 cái, trung bình 8,0, và chưa lần nào bán đủ 10. Mất 125 ms, chậm gấp 4 đến 5 lần các cách khác.
+- ConditionalUpdate bán đúng 10 ở cả 20 lần, mất 29 ms.
+- UpdLock bán đúng 10 ở cả 20 lần, mất 31 ms.
+
+Không cách nào bán quá. Không lần nào có deadlock hay timeout.
+
+Độ dài đoạn code giữ chỗ trong bài thử:
+- RowVersion: 11 dòng.
+- RowVersionRetry3: 20 dòng.
+- ConditionalUpdate: 24 dòng. Quy tắc tồn kho nằm trong câu SQL, không đi qua `Product.Reserve`.
+- UpdLock: 17 dòng. Vẫn dùng `Product.Reserve`.
+
+### Rút ra
+
+Rowversion là optimistic concurrency. Nó chỉ tốt khi xung đột hiếm. Khi 50 người tranh nhau 10 món, gần như ai cũng đọc cùng một phiên bản của dòng product. Một người ghi thắng, những người còn lại đều thất bại, dù kho vẫn còn hàng. Đây là xung đột giả.
+
+Retry chỉ chữa triệu chứng. Mỗi vòng retry lại là một cuộc đua giống hệt, nên 3 lần retry vẫn để sót trung bình 2 món, và thời gian tăng gấp 4 đến 5 lần.
+
+ConditionalUpdate và UpdLock bỏ hẳn cuộc đua: người mua xếp hàng chờ khoá của dòng product, rồi quyết định dựa trên số liệu mới nhất. Vì vậy số giữ chỗ thành công luôn đúng bằng min(tồn kho, N), và thời gian chỉ chênh vài ms so với RowVersion.
+
+Quyết định được ghi trong ADR-007:
+- Giữ rowversion làm lưới an toàn cho mọi lệnh ghi khác.
+- Không thêm retry.
+- Đề xuất (Proposed, chưa làm) chuyển bước giữ chỗ của CreateOrder sang UPDLOCK trong ITransactionRunner, khoá các product theo thứ tự id tăng dần để tránh deadlock.
+
+### Số test đo 31/10/2026
+
+Chạy với LocalDB, kết quả là 329 test, tất cả pass.
+
+- Unit: 255.
+- Integration: 74, gồm 62 test cũ và 12 case so sánh mới.
+
+---
+
+## 10. CreateOrder dùng UPDLOCK (31/10/2026)
+
+Mục này thực hiện quyết định của ADR-007 và đóng G-04.
+
+### Thay đổi
+
+- `IProductRepository` có thêm `GetByIdsWithUpdateLockAsync`. `ProductRepository` chạy câu `SELECT * FROM products WITH (UPDLOCK, ROWLOCK) WHERE id IN (...)`, mỗi id là một tham số SQL, id được loại trùng và sắp xếp tăng dần.
+- `CreateOrderCommandHandler` nhận thêm `ITransactionRunner`. Phần validate input vẫn ở ngoài. Từ bước kiểm tra customer, đọc product có khoá, kiểm tra product, `Product.Reserve`, tới lúc tạo và lưu order đều chạy trong một transaction.
+- Unit test: 11 fake của `IProductRepository` được thêm method mới. Fake của CreateOrder trả dữ liệu giống `GetByIdsAsync`, và `HandlerFor` truyền thêm `FakeTransactionRunner`. 255 unit test vẫn xanh.
+
+Vì sao phải sắp xếp id tăng dần: nếu hai order cùng mua sản phẩm A và B nhưng một bên khoá A trước, bên kia khoá B trước, thì mỗi bên giữ một dòng và chờ dòng còn lại. Đó là deadlock. Khoá theo cùng một thứ tự thì không thể xảy ra vòng chờ như vậy.
+
+Vì sao không viết `FromSql(...).Where(...)`: EF sẽ bọc câu SQL thành subquery. Khi đó câu bên trong có hint UPDLOCK nhưng không có điều kiện id, nên SQL Server sẽ khoá mọi dòng nó quét qua chứ không chỉ các product cần mua.
+
+### Bằng chứng
+
+Log SQL của `CreateOrderRollbackTests` cho thấy thứ tự: Began transaction, SELECT ... WITH (UPDLOCK, ROWLOCK), INSERT INTO orders, UPDATE products, rồi lỗi được cố tình gây ra và Disposing transaction mà không commit. Database không còn gì, test vẫn xanh.
+
+`CreateOrderConcurrencyTests` chạy qua HTTP thật, giờ có 3 case. Mình chạy lặp 20 lần, cả 20 lần pass, và kết quả lần nào cũng giống hệt nhau:
+- Tồn kho 1, N = 10: 1 order thành công, 9 lỗi 409 "Insufficient stock", 0 lỗi "Concurrent modification".
+- Tồn kho 1, N = 50: 1 thành công, 49 lỗi "Insufficient stock", 0 lỗi "Concurrent modification".
+- Tồn kho 10, N = 50: 10 thành công, 40 lỗi "Insufficient stock", 0 lỗi "Concurrent modification".
+
+So với trước khi đổi (mục 8 và mục 9):
+- Không còn lỗi "Concurrent modification" ở luồng này, vì người mua xếp hàng chờ khoá thay vì đua nhau ghi. Test assert con số này luôn bằng 0.
+- Với tồn kho 10, hệ thống bán đủ 10 thay vì trung bình 1,4. Người mua chỉ bị từ chối khi kho thật sự hết hàng.
+
+Về thời gian: mỗi case HTTP mất khoảng 0,1 đến 0,4 giây, nhưng con số đó gồm cả thời gian dựng API test, nên không dùng để so sánh. Số so sánh công bằng giữa các phương án là bài đo ở mục 9: UpdLock có trung vị 31 ms với tồn kho 10 và N = 50.
+
+### Số test đo 31/10/2026
+
+Chạy với LocalDB, kết quả là 330 test, tất cả pass.
+
+- Unit: 255.
+- Integration: 75, gồm 74 test cũ và 1 case HTTP mới (tồn kho 10, N = 50).

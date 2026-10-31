@@ -14,6 +14,15 @@ public interface IProductRepository
         IReadOnlyCollection<int> productIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Loads the products tracked and holds an UPDLOCK on their rows until the surrounding
+    /// transaction ends, so concurrent reservations queue instead of racing (ADR-007).
+    /// Only meaningful inside an <see cref="ITransactionRunner"/> transaction.
+    /// </summary>
+    Task<IReadOnlyList<Product>> GetByIdsWithUpdateLockAsync(
+        IReadOnlyCollection<int> productIds,
+        CancellationToken cancellationToken = default);
+
     Task<Product?> GetByIdAsync(int productId, CancellationToken cancellationToken = default);
 
     Task<Product?> GetByIdForUpdateAsync(int productId, CancellationToken cancellationToken = default);

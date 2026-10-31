@@ -50,6 +50,10 @@ public sealed class GetProductsQueryHandlerTests
 
     private sealed class FakeProductRepository : IProductRepository
     {
+        public Task<IReadOnlyList<Product>> GetByIdsWithUpdateLockAsync(
+            IReadOnlyCollection<int> productIds, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private readonly List<Product> _products;
 
         public FakeProductRepository(params Product[] products) => _products = products.ToList();

@@ -43,6 +43,10 @@ public sealed class GetProductByIdQueryHandlerTests
 
     private sealed class FakeProductRepository : IProductRepository
     {
+        public Task<IReadOnlyList<Product>> GetByIdsWithUpdateLockAsync(
+            IReadOnlyCollection<int> productIds, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
 
         public Task<Product?> GetByIdForUpdateAsync(int productId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for this test.");

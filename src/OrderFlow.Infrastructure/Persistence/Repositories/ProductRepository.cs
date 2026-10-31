@@ -25,6 +25,30 @@ internal sealed class ProductRepository : IProductRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Product>> GetByIdsWithUpdateLockAsync(
+        IReadOnlyCollection<int> productIds,
+        CancellationToken cancellationToken = default)
+    {
+        // Ascending id order: two orders sharing products lock them in the same sequence,
+        // so neither can hold one row while waiting for the other (no deadlock).
+        var ids = productIds.Distinct().Order().ToArray();
+
+        if (ids.Length == 0)
+        {
+            return Array.Empty<Product>();
+        }
+
+        // The hint must sit on the statement that filters by id. Composing LINQ on top
+        // (FromSql(...).Where(...)) would wrap it in a subquery and lock every row scanned.
+        var placeholders = string.Join(", ", ids.Select((_, i) => $"{{{i}}}"));
+
+        return await _db.Products
+            .FromSqlRaw(
+                $"SELECT * FROM products WITH (UPDLOCK, ROWLOCK) WHERE id IN ({placeholders})",
+                ids.Cast<object>().ToArray())
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Product?> GetByIdAsync(
         int productId,
         CancellationToken cancellationToken = default)

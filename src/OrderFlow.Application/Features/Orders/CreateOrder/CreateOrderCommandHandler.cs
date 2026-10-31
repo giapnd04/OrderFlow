@@ -12,6 +12,8 @@ namespace OrderFlow.Application.Features.Orders.CreateOrder;
 /// products, snapshot their prices onto new order lines, let the <see cref="Order"/>
 /// aggregate build itself (and compute its total), reserve stock for each line
 /// (ADR-004), then persist it. Payment handling is a separate use case.
+/// The products are read under an UPDLOCK inside one transaction, so concurrent buyers
+/// queue on the rows and are only refused when stock has really run out (ADR-007).
 /// </summary>
 public sealed class CreateOrderCommandHandler
     : ICommandHandler<CreateOrderCommand, CreateOrderResult>
@@ -19,15 +21,18 @@ public sealed class CreateOrderCommandHandler
     private readonly ICustomerRepository _customers;
     private readonly IProductRepository _products;
     private readonly IOrderRepository _orders;
+    private readonly ITransactionRunner _transactions;
 
     public CreateOrderCommandHandler(
         ICustomerRepository customers,
         IProductRepository products,
-        IOrderRepository orders)
+        IOrderRepository orders,
+        ITransactionRunner transactions)
     {
         _customers = customers;
         _products = products;
         _orders = orders;
+        _transactions = transactions;
     }
 
     public async Task<CreateOrderResult> Handle(
@@ -55,13 +60,28 @@ public sealed class CreateOrderCommandHandler
             .GroupBy(i => i.ProductId)
             .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
-        if (!await _customers.ExistsAsync(command.CustomerId, cancellationToken))
+        CreateOrderResult? result = null;
+
+        // The row locks taken while reading the products last until this transaction commits.
+        await _transactions.ExecuteAsync(
+            async token => result = await ReserveAndCreateAsync(command.CustomerId, requestedQuantities, token),
+            cancellationToken);
+
+        return result!;
+    }
+
+    private async Task<CreateOrderResult> ReserveAndCreateAsync(
+        int customerId,
+        IReadOnlyDictionary<int, int> requestedQuantities,
+        CancellationToken cancellationToken)
+    {
+        if (!await _customers.ExistsAsync(customerId, cancellationToken))
         {
-            throw new NotFoundException("Customer", command.CustomerId);
+            throw new NotFoundException("Customer", customerId);
         }
 
         var productIds = requestedQuantities.Keys.ToArray();
-        var products = await _products.GetByIdsAsync(productIds, cancellationToken);
+        var products = await _products.GetByIdsWithUpdateLockAsync(productIds, cancellationToken);
         var productsById = products.ToDictionary(p => p.Id);
 
         var missing = productIds.Where(id => !productsById.ContainsKey(id)).ToArray();
@@ -89,7 +109,7 @@ public sealed class CreateOrderCommandHandler
             .Select(kvp => OrderItem.Create(kvp.Key, kvp.Value, productsById[kvp.Key].Price))
             .ToList();
 
-        var order = Order.Create(command.CustomerId, items);
+        var order = Order.Create(customerId, items);
 
         await _orders.AddAsync(order, cancellationToken);
 

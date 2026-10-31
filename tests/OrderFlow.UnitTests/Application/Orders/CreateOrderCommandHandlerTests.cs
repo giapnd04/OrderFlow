@@ -3,6 +3,7 @@ using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.Domain.Entities;
 using OrderFlow.Domain.Enums;
+using OrderFlow.UnitTests.Application.Auth;
 
 namespace OrderFlow.UnitTests.Application.Orders;
 
@@ -21,7 +22,8 @@ public class CreateOrderCommandHandlerTests
         => new(
             new FakeCustomerRepository(KnownCustomerId),
             new FakeProductRepository(products),
-            orders);
+            orders,
+            new FakeTransactionRunner());
 
     [Fact]
     public async Task Handle_ValidRequest_CreatesPendingOrderWithSnapshotPrices()
@@ -168,6 +170,11 @@ public class CreateOrderCommandHandlerTests
 
     private sealed class FakeProductRepository : IProductRepository
     {
+        public Task<IReadOnlyList<Product>> GetByIdsWithUpdateLockAsync(
+            IReadOnlyCollection<int> productIds,
+            CancellationToken cancellationToken = default)
+            => GetByIdsAsync(productIds, cancellationToken);
+
 
         public Task<Product?> GetByIdForUpdateAsync(int productId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for this test.");

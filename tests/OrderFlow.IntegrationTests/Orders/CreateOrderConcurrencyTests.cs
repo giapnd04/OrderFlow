@@ -10,8 +10,9 @@ using Xunit.Abstractions;
 
 namespace OrderFlow.IntegrationTests.Orders;
 
-// OF-04 / G-04: N buyers race for the last unit. Rowversion on products must let exactly one
-// reservation through; everyone else gets 409, and stock is never oversold.
+// OF-04 / G-04: N buyers race for limited stock. CreateOrder locks the product rows (UPDLOCK,
+// ADR-007), so exactly min(stock, N) orders succeed, everyone else gets 409 "Insufficient stock",
+// and stock is never oversold.
 [Collection(SqlServerCollection.Name)]
 public sealed class CreateOrderConcurrencyTests : IAsyncLifetime
 {
@@ -29,11 +30,13 @@ public sealed class CreateOrderConcurrencyTests : IAsyncLifetime
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Theory]
-    [InlineData(10)]
-    [InlineData(50)]
-    public async Task ConcurrentCreateOrder_LastUnit_ExactlyOneSucceeds(int requests)
+    [InlineData(1, 10)]
+    [InlineData(1, 50)]
+    [InlineData(10, 50)]
+    public async Task ConcurrentCreateOrder_LimitedStock_SellsExactlyTheStock(int stock, int requests)
     {
-        var (customerId, productId) = await TestData.SeedCustomerAndProductAsync(_sql, stockQuantity: 1);
+        var (customerId, productId) = await TestData.SeedCustomerAndProductAsync(_sql, stock);
+        var expectedCreated = Math.Min(stock, requests);
 
         await using var factory = new SqlApiFactory(_sql.ConnectionString);
         using var client = factory.CreateClient();
@@ -57,23 +60,28 @@ public sealed class CreateOrderConcurrencyTests : IAsyncLifetime
         Assert.True(unexpected.Count == 0,
             $"{unexpected.Count} unexpected response(s), first: {unexpected.FirstOrDefault().StatusCode} {unexpected.FirstOrDefault().Body}");
 
-        Assert.Equal(1, results.Count(r => r.StatusCode == HttpStatusCode.Created));
+        Assert.Equal(expectedCreated, results.Count(r => r.StatusCode == HttpStatusCode.Created));
 
         var conflictTitles = results
             .Where(r => r.StatusCode == HttpStatusCode.Conflict)
             .Select(r => JsonDocument.Parse(r.Body).RootElement.GetProperty("title").GetString())
             .ToList();
 
+        var concurrentModifications = conflictTitles.Count(t => t == "Concurrent modification");
+
         _output.WriteLine(
-            $"RESULT N={requests} created=1 " +
-            $"concurrentModification={conflictTitles.Count(t => t == "Concurrent modification")} " +
+            $"RESULT stock={stock} N={requests} created={expectedCreated} " +
+            $"concurrentModification={concurrentModifications} " +
             $"insufficientStock={conflictTitles.Count(t => t == "Insufficient stock")}");
+
+        // Buyers queue on the row lock, so rowversion never has to reject anyone on this path.
+        Assert.Equal(0, concurrentModifications);
 
         await using var db = _sql.CreateDbContext();
         var product = await db.Products.SingleAsync(p => p.Id == productId);
 
-        Assert.Equal(1, await db.Orders.CountAsync());
-        Assert.Equal(1, product.ReservedQuantity);
+        Assert.Equal(expectedCreated, await db.Orders.CountAsync());
+        Assert.Equal(expectedCreated, product.ReservedQuantity);
         Assert.True(product.ReservedQuantity <= product.StockQuantity);
     }
 }

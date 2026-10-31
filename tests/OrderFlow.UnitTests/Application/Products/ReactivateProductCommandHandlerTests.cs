@@ -58,6 +58,10 @@ public sealed class ReactivateProductCommandHandlerTests
 
     private sealed class FakeProductRepository : IProductRepository
     {
+        public Task<IReadOnlyList<Product>> GetByIdsWithUpdateLockAsync(
+            IReadOnlyCollection<int> productIds, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("Not needed for this test.");
+
         private readonly Product? _product;
 
         public FakeProductRepository(Product? product) => _product = product;

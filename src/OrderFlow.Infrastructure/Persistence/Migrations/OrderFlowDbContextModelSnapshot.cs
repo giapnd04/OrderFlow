@@ -303,6 +303,8 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_payment_attempts_amount", "[amount] > 0");
 
                             t.HasCheckConstraint("ck_payment_attempts_status", "[status] COLLATE Latin1_General_CS_AS IN (N'Pending', N'Succeeded', N'Failed', N'Cancelled', N'Expired')");
+
+                            t.HasCheckConstraint("ck_payment_attempts_succeeded_requires_provider_tx", "[status] <> N'Succeeded' OR [provider_transaction_id] IS NOT NULL");
                         });
                 });
 

@@ -45,6 +45,12 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
             throw new ValidationException("Payment provider is required.");
         }
 
+        // Without the provider's id a duplicate succeeded payment cannot be recognised (ADR-008).
+        if (command.Status == PaymentAttemptStatus.Succeeded && string.IsNullOrWhiteSpace(command.ProviderTransactionId))
+        {
+            throw new ValidationException("Provider transaction ID is required for a succeeded payment.");
+        }
+
         ProcessPaymentResult? result = null;
 
         // The payment insert and the order/product update are two SaveChanges calls; one
@@ -60,6 +66,8 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
         ProcessPaymentCommand command,
         CancellationToken cancellationToken)
     {
+        // Locks the order row until commit, so payments for the same order run one at a time:
+        // a twin request waits here and then sees the first one as a replay (ADR-008).
         var order = await _orders.GetByIdForUpdateAsync(command.OrderId, cancellationToken);
 
         if (order is null)
@@ -67,11 +75,34 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
             throw new NotFoundException("Order", command.OrderId);
         }
 
+        if (command.ProviderTransactionId is not null)
+        {
+            var recorded = await _payments.GetByProviderTransactionAsync(
+                command.Provider.Trim(), command.ProviderTransactionId, cancellationToken);
+
+            if (recorded is not null)
+            {
+                return Replay(recorded, command, order);
+            }
+        }
+
         if (order.Status != OrderStatus.PendingPayment)
         {
             throw new InvalidOrderStateException(
                 $"Order '{order.Id}' cannot receive a payment attempt " +
                 $"from status '{order.Status}'.");
+        }
+
+        if (command.Status == PaymentAttemptStatus.Succeeded)
+        {
+            var alreadyPaid = await _payments.GetSucceededAmountAsync(order.Id, cancellationToken);
+
+            if (alreadyPaid + command.Amount > order.TotalAmount)
+            {
+                throw new ConflictException(
+                    $"Payment of {command.Amount} would exceed the order total {order.TotalAmount} " +
+                    $"({alreadyPaid} already paid).");
+            }
         }
 
         var paymentAttempt = PaymentAttempt.Create(
@@ -120,5 +151,22 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
             order.Status,
             paymentAttempt.Id,
             paymentAttempt.Status);
+    }
+
+    // Same provider id again: identical payload is a retried callback and gets the original
+    // answer; anything else reusing the id is a different payment and is refused.
+    private static ProcessPaymentResult Replay(PaymentAttempt recorded, ProcessPaymentCommand command, Order order)
+    {
+        var samePayment = recorded.OrderId == command.OrderId
+                          && recorded.Amount == command.Amount
+                          && recorded.Status == command.Status;
+
+        if (!samePayment)
+        {
+            throw new ConflictException(
+                $"Provider transaction '{command.ProviderTransactionId}' was already recorded with different details.");
+        }
+
+        return new ProcessPaymentResult(order.Id, order.Status, recorded.Id, recorded.Status);
     }
 }

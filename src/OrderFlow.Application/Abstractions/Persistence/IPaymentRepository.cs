@@ -7,6 +7,12 @@ public interface IPaymentRepository
 {
     Task AddAsync(PaymentAttempt paymentAttempt, CancellationToken cancellationToken = default);
 
+    /// <summary>The attempt already recorded for this provider id, if any (replay detection, ADR-008).</summary>
+    Task<PaymentAttempt?> GetByProviderTransactionAsync(
+        string provider,
+        string providerTransactionId,
+        CancellationToken cancellationToken = default);
+
     Task<PaymentAttempt?> GetByIdAsync(int paymentAttemptId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<PaymentAttempt>> GetByOrderIdAsync(int orderId, CancellationToken cancellationToken = default);

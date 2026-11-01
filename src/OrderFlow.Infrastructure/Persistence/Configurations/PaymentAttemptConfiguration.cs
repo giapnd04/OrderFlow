@@ -14,6 +14,11 @@ internal sealed class PaymentAttemptConfiguration : IEntityTypeConfiguration<Pay
             t.HasCheckConstraint(
                 "ck_payment_attempts_status",
                 "[status] COLLATE Latin1_General_CS_AS IN (N'Pending', N'Succeeded', N'Failed', N'Cancelled', N'Expired')");
+            // A succeeded payment must carry the provider's id, otherwise the filtered unique
+            // index below cannot catch a duplicate of it (OF-05, ADR-008).
+            t.HasCheckConstraint(
+                "ck_payment_attempts_succeeded_requires_provider_tx",
+                "[status] <> N'Succeeded' OR [provider_transaction_id] IS NOT NULL");
         });
 
         builder.HasKey(p => p.Id);

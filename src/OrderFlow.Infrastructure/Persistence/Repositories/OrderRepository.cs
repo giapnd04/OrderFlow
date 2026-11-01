@@ -25,9 +25,14 @@ internal sealed class OrderRepository : IOrderRepository
             .FirstOrDefaultAsync(order => order.Id == orderId, cancellationToken);
     }
 
+    // UPDLOCK on the order row: inside a transaction (ProcessPayment) it makes every change to
+    // the same order queue behind the first one until commit (ADR-008). Outside a transaction
+    // the lock ends with this SELECT, so other callers see no difference. The hint sits on the
+    // statement that filters by id, so only this one row is locked.
     public async Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
     {
         return await _db.Orders
+            .FromSqlInterpolated($"SELECT * FROM orders WITH (UPDLOCK, ROWLOCK) WHERE id = {orderId}")
             .Include(order => order.Items)
             .FirstOrDefaultAsync(
                 order => order.Id == orderId,

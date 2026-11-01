@@ -103,6 +103,65 @@ public sealed class ProcessPaymentCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_SucceededWithoutProviderTransactionId_ThrowsValidation()
+    {
+        var product = ReservedProduct(10, reserveQty: 2, price: 100m);
+        var order = PendingOrder(product, 2);
+
+        await Assert.ThrowsAsync<ValidationException>(() => HandlerFor(new FakeOrderRepository(order), new FakePaymentRepository(), product)
+            .Handle(new ProcessPaymentCommand(order.Id, 200m, "Stripe", " ", PaymentAttemptStatus.Succeeded), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_SamePaymentTwice_ReplaysTheFirstResultWithoutANewAttempt()
+    {
+        var product = ReservedProduct(10, reserveQty: 2, price: 100m);
+        var order = PendingOrder(product, 2);
+        var payments = new FakePaymentRepository();
+        var handler = HandlerFor(new FakeOrderRepository(order), payments, product);
+        var command = new ProcessPaymentCommand(order.Id, 200m, "Stripe", "tx-1", PaymentAttemptStatus.Succeeded);
+
+        var first = await handler.Handle(command, CancellationToken.None);
+        var second = await handler.Handle(command, CancellationToken.None);
+
+        Assert.Equal(first.PaymentAttemptId, second.PaymentAttemptId);
+        Assert.Equal(OrderStatus.Paid, second.OrderStatus);
+        Assert.Equal(200m, await payments.GetSucceededAmountAsync(order.Id));
+    }
+
+    [Fact]
+    public async Task Handle_SameProviderTransactionIdWithDifferentAmount_ThrowsConflict()
+    {
+        var product = ReservedProduct(10, reserveQty: 2, price: 100m);
+        var order = PendingOrder(product, 2);
+        var handler = HandlerFor(new FakeOrderRepository(order), new FakePaymentRepository(), product);
+
+        await handler.Handle(
+            new ProcessPaymentCommand(order.Id, 50m, "Stripe", "tx-1", PaymentAttemptStatus.Succeeded), CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(
+            new ProcessPaymentCommand(order.Id, 60m, "Stripe", "tx-1", PaymentAttemptStatus.Succeeded), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_PaymentBeyondOrderTotal_ThrowsConflictAndRecordsNothing()
+    {
+        var product = ReservedProduct(10, reserveQty: 2, price: 100m);
+        var order = PendingOrder(product, 2);
+        var payments = new FakePaymentRepository();
+        var handler = HandlerFor(new FakeOrderRepository(order), payments, product);
+
+        await handler.Handle(
+            new ProcessPaymentCommand(order.Id, 150m, "Stripe", "tx-1", PaymentAttemptStatus.Succeeded), CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConflictException>(() => handler.Handle(
+            new ProcessPaymentCommand(order.Id, 100m, "Stripe", "tx-2", PaymentAttemptStatus.Succeeded), CancellationToken.None));
+
+        Assert.Equal(150m, await payments.GetSucceededAmountAsync(order.Id));
+        Assert.Equal(OrderStatus.PendingPayment, order.Status);
+    }
+
+    [Fact]
     public async Task Handle_OrderNotPendingPayment_ThrowsInvalidOrderState()
     {
         var product = ReservedProduct(10, reserveQty: 2, price: 100m);
@@ -214,6 +273,11 @@ public sealed class ProcessPaymentCommandHandlerTests
             _attempts.Add(paymentAttempt);
             return Task.CompletedTask;
         }
+
+        public Task<PaymentAttempt?> GetByProviderTransactionAsync(
+            string provider, string providerTransactionId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_attempts.FirstOrDefault(
+                a => a.Provider == provider && a.ProviderTransactionId == providerTransactionId));
 
         public Task<PaymentAttempt?> GetByIdAsync(int paymentAttemptId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

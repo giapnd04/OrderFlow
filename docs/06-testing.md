@@ -133,7 +133,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-02. Chống payment trùng mới làm được một phần
 
-- OF-05 · P0 · Open
+- OF-05 · P0 · Closed (01/11: bắt buộc mã giao dịch, replay, khoá order, chặn ghi vượt; xem mục 11 và ADR-008)
 - Vấn đề:
   - `ProviderTransactionId` cho phép NULL.
   - Unique index có filter `IS NOT NULL`, nên payment không có mã giao dịch thì không bị chặn trùng.
@@ -469,3 +469,68 @@ Chạy với LocalDB, kết quả là 330 test, tất cả pass.
 
 - Unit: 255.
 - Integration: 75, gồm 74 test cũ và 1 case HTTP mới (tồn kho 10, N = 50).
+
+---
+
+## 11. Chống ghi tiền trùng và ghi vượt (01/11/2026)
+
+Mục này đóng G-02 / OF-05. Câu hỏi cần trả lời: callback thanh toán bị gửi hai lần, hoặc hai payment khác nhau cùng tới một lúc, thì tiền có bị ghi sai không?
+
+### Test
+
+File `tests/OrderFlow.IntegrationTests/Payments/PaymentIdempotencyTests.cs` gọi `POST /api/orders/{id}/payments` qua API thật, trên một order tổng 20. File có 7 test:
+
+1. Gửi cùng một payment 5 lần liên tiếp: cả 5 lần đều 200 với cùng payment id, chỉ có 1 dòng, order Paid.
+2. Cùng mã giao dịch nhưng amount khác: 409, dữ liệu không đổi.
+3. Payment Succeeded mà không có mã giao dịch: 400, không có dòng nào.
+4. Hai payment đủ tiền, khác mã, gửi đồng thời: 1 response 200 và 1 response 409. Có 1 dòng Succeeded, order Paid, stock chỉ bị trừ một lần.
+5. Hai payment 15 gửi đồng thời: 1 response 200 và 1 response 409. Tổng đã trả là 15, order vẫn PendingPayment.
+6. Hai request giống hệt nhau gửi đồng thời: cả hai đều 200, có đúng 1 dòng.
+7. Insert bằng SQL thô một dòng Succeeded mà mã giao dịch là NULL: bị CHECK constraint chặn, lỗi 547.
+
+### Kết quả trước khi sửa (đỏ)
+
+Chạy trên code cũ: 2 test xanh, 5 test đỏ.
+
+- Test 1 đỏ: lần gửi thứ 2 tới thứ 5 nhận 409 "Invalid order state", vì lần đầu đã trả xong order. Phía nhà cung cấp thanh toán không phân biệt được lỗi này với một lỗi thật.
+- Test 3 đỏ: payment không có mã giao dịch vẫn được nhận, trả 200.
+- Test 5 đỏ: cả hai payment 15 đều được nhận. Order 20 bị ghi 30 và vẫn chuyển sang Paid. Đây là lỗi ghi vượt thật.
+- Test 6 đỏ: một trong hai request nhận 409 "Duplicate value" do unique index chặn, thay vì được trả lại kết quả cũ.
+- Test 7 đỏ: database chưa có constraint nào chặn.
+
+Test 2 và test 4 đã xanh sẵn. Test 2 xanh nhờ unique index chặn mã trùng. Test 4 xanh nhờ rowversion trên order: request thứ hai cập nhật order dựa trên dữ liệu cũ nên bị từ chối, và transaction của Ngày 3 rollback luôn payment của nó.
+
+### Cách sửa
+
+1. Handler từ chối payment Succeeded không có mã giao dịch (400). Thêm CHECK `ck_payment_attempts_succeeded_requires_provider_tx` và migration `RequireProviderTransactionId`. Migration gán `legacy-<id>` cho các dòng cũ chưa có mã trước khi thêm constraint.
+2. Replay: nếu cặp (provider, mã) đã có, mà order, amount và status trùng khớp, thì trả lại kết quả cũ với 200 và không ghi gì thêm. Nếu khác bất kỳ trường nào thì trả 409.
+3. `OrderRepository.GetByIdForUpdateAsync` đọc order bằng `WITH (UPDLOCK, ROWLOCK)`. Trong transaction của ProcessPayment, các payment của cùng một order phải xếp hàng chờ nhau. Order được khoá trước khi kiểm tra replay, nên request sinh đôi sẽ chờ, rồi thấy payment của request đầu và được trả 200.
+4. Chặn ghi vượt: nếu đã trả + amount lớn hơn tổng order thì trả 409.
+
+Unique index có filter vẫn được giữ làm lưới an toàn cuối. Chi tiết xem ADR-008.
+
+### Kết quả sau khi sửa (xanh)
+
+- Cả 7 test đều xanh. Chạy lặp 20 lần, cả 20 lần pass.
+- 2 test ProcessPayment của Ngày 3 vẫn xanh.
+- Unit test có thêm 4 test: thiếu mã giao dịch, replay, cùng mã khác amount, ghi vượt.
+- Database test tự áp migration mới qua `MigrateAsync`. `__EFMigrationsHistory` có 8 dòng.
+
+Để áp migration vào database dev, bạn chạy lệnh sau (có thể cần `dotnet tool restore` trước):
+
+```bash
+dotnet ef database update --project src/OrderFlow.Infrastructure
+```
+
+### Vì sao filtered unique index bỏ qua NULL
+
+Trong SQL Server, một unique index thường chỉ cho phép một dòng NULL, vì nó coi các NULL là bằng nhau. Filter `WHERE provider_transaction_id IS NOT NULL` loại hẳn các dòng NULL ra khỏi index. Nhờ vậy nhiều payment Pending hoặc Failed không có mã vẫn cùng tồn tại được, còn mọi mã thật thì vẫn phải là duy nhất.
+
+Cái giá của cách này: một payment Succeeded không có mã sẽ lọt qua index. Đó là lý do có thêm CHECK constraint ở bước 1.
+
+### Số test đo 01/11/2026
+
+Chạy với LocalDB, kết quả là 341 test, tất cả pass.
+
+- Unit: 259, gồm 255 test cũ và 4 test mới.
+- Integration: 82, gồm 75 test cũ và 7 test mới.

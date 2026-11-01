@@ -47,6 +47,10 @@ internal sealed class FakePaymentRepository : IPaymentRepository
 
     public FakePaymentRepository(params PaymentAttempt[] attempts) => _attempts = attempts.ToList();
 
+    public Task<PaymentAttempt?> GetByProviderTransactionAsync(
+        string provider, string providerTransactionId, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Not needed for payment query tests.");
+
     public Task<PaymentAttempt?> GetByIdAsync(int paymentAttemptId, CancellationToken cancellationToken = default)
         => Task.FromResult(_attempts.FirstOrDefault(a => a.Id == paymentAttemptId));
 

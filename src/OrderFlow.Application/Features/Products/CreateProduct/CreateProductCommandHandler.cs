@@ -38,7 +38,7 @@ public sealed class CreateProductCommandHandler
                 sku,
                 cancellationToken))
         {
-            throw new ValidationException($"Product with SKU '{sku}' already exists.");
+            throw new ConflictException($"Product with SKU '{sku}' already exists.");
         }
 
         var product = Product.Create(

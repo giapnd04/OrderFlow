@@ -96,7 +96,7 @@ public sealed class PaymentIdempotencyTests : IAsyncLifetime
     {
         var (orderId, productId) = await TestData.SeedPendingOrderAsync(_sql);
 
-        var results = await RaceAsync(
+        var results = await Concurrently.RunAsync(
             () => PayAsync(orderId, TestData.OrderTotal, "TX-A"),
             () => PayAsync(orderId, TestData.OrderTotal, "TX-B"));
 
@@ -117,7 +117,7 @@ public sealed class PaymentIdempotencyTests : IAsyncLifetime
     {
         var (orderId, _) = await TestData.SeedPendingOrderAsync(_sql);
 
-        var results = await RaceAsync(
+        var results = await Concurrently.RunAsync(
             () => PayAsync(orderId, 15m, "TX-P1"),
             () => PayAsync(orderId, 15m, "TX-P2"));
 
@@ -138,7 +138,7 @@ public sealed class PaymentIdempotencyTests : IAsyncLifetime
     {
         var (orderId, _) = await TestData.SeedPendingOrderAsync(_sql);
 
-        var results = await RaceAsync(
+        var results = await Concurrently.RunAsync(
             () => PayAsync(orderId, TestData.OrderTotal, "TX-TWIN"),
             () => PayAsync(orderId, TestData.OrderTotal, "TX-TWIN"));
 
@@ -174,20 +174,6 @@ public sealed class PaymentIdempotencyTests : IAsyncLifetime
         });
 
         return (response.StatusCode, await response.Content.ReadAsStringAsync());
-    }
-
-    private static async Task<(HttpStatusCode Status, string Body)[]> RaceAsync(
-        params Func<Task<(HttpStatusCode Status, string Body)>>[] calls)
-    {
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var tasks = calls.Select(async call =>
-        {
-            await start.Task;
-            return await call();
-        }).ToList();
-
-        start.SetResult();
-        return await Task.WhenAll(tasks);
     }
 
     private static int PaymentAttemptId(string body)

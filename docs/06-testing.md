@@ -142,7 +142,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-03. Không có integration test chạm SQL Server thật
 
-- OF-02 · P0 · In progress (28/10: đã có `SqlServerFixture` và 3 test CHECK constraint cho products, xem mục 6)
+- OF-02 · P0 · Closed (02/11: có fixture, ADR-009, test SKU trùng; phần chạy trong CI chuyển sang G-09, xem mục 12)
 - Vấn đề: chưa có fixture database, cũng chưa có thư mục test cho Orders và Products.
 - Bằng chứng: `tests/OrderFlow.IntegrationTests/Security/ApiFactory.cs` dùng connection string không kết nối được. Thư mục integration chỉ có `Security/`.
 
@@ -154,7 +154,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-05. CreateOrder / CancelOrder chưa có test rollback
 
-- OF-02, OF-04 · P0 · Open
+- OF-02, OF-04 · P0 · Closed (29/10: test rollback CreateOrder. 02/11: test rollback CancelOrder, xem mục 12)
 - Vấn đề: hai use case này nguyên tử nhờ chỉ gọi `SaveChanges` một lần (implicit transaction). Tuy vậy chưa có test rollback thật để chứng minh điều đó.
 - Bằng chứng: handler của CreateOrder và CancelOrder. Muốn viết test cho gap này thì cần SQL fixture của G-03 trước.
 
@@ -178,7 +178,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-09. Chưa có Docker và CI
 
-- OF-11 · P0 · Open
+- OF-11 · P0 · Open (nhận thêm từ G-03: phải chạy database test trong CI và kiểm chứng nhánh Testcontainers)
 - Vấn đề: chưa có Dockerfile hay docker-compose, cũng không có thư mục `.github/`.
 - Bằng chứng: thư mục gốc repo.
 
@@ -534,3 +534,65 @@ Chạy với LocalDB, kết quả là 341 test, tất cả pass.
 
 - Unit: 259, gồm 255 test cũ và 4 test mới.
 - Integration: 82, gồm 75 test cũ và 7 test mới.
+
+---
+
+## 12. Tổng kết tuần 1 (02/11/2026)
+
+### Đối chiếu OF-01 đến OF-05 với acceptance criteria
+
+OF-01 Baseline và gap register:
+- Đạt: số test, endpoint, migration, bảng gap có trỏ tới OF-xx.
+- Chưa đạt tại thời điểm viết: tag `v1.0-baseline` chưa có trên GitHub. Tag phải được tạo tại commit `36cbabe`.
+
+OF-02 Hạ tầng test với SQL Server:
+- Đạt: fixture, migration thật, Respawn, ADR-009, test CHECK `reserved_quantity <= stock_quantity`, test SKU trùng trả 409, ghi chú các lỗi fake không phát hiện được (bên dưới).
+- Chưa đạt: chạy trong CI. Phần này đã chuyển sang G-09 / OF-11. Nhánh Testcontainers cũng chưa từng chạy thật vì máy chưa có Docker.
+
+OF-03 ProcessPayment nguyên tử: đạt đủ. Test đỏ trên code cũ, xanh trên code mới, có ADR-006.
+
+OF-04 Chống oversell:
+- Đạt: test song song N = 10 và 50, chạy lặp 20 lần, so sánh các phương án bằng số đo thật, quyết định về retry, ADR-007.
+- Từ hôm nay test assert thêm tổng `order_items.quantity` bằng `reserved_quantity`.
+- Khác với lịch ban đầu: các phương án được thử trong project test thay vì trên nhánh `exp/concurrency`.
+
+OF-05 Idempotency và chống ghi vượt: đạt đủ, có ADR-008.
+
+### Test mới hôm nay
+
+`ProductUniqueSkuTests` có 2 test:
+- Tạo trùng SKU lần lượt phải trả 409. Test này bắt được một lỗi thật: handler đang trả 400, vì nó ném `ValidationException`. Đã sửa `CreateProductCommandHandler` để ném `ConflictException`.
+- Tạo trùng SKU đồng thời: 1 response 201 và 1 response 409. Khi cả hai request cùng qua được bước kiểm tra `ExistsBySkuAsync`, unique index là thứ chặn request thứ hai.
+
+`CancelOrderRollbackTests` có 1 test và đóng G-05. Ngay trước lúc lưu, một session khác đổi dòng product, làm `row_version` thay đổi. Log SQL cho thấy: Began transaction, UPDATE orders, UPDATE products, rồi Disposing transaction mà không có Committed. Kết quả: order vẫn PendingPayment, `reserved_quantity` không đổi. Như vậy implicit transaction của một lần SaveChanges đã rollback được cả lệnh UPDATE orders.
+
+### Các lỗi mà fake repository không phát hiện được
+
+Tất cả đều là lỗi thật hoặc rủi ro thật đã gặp trong tuần này. Unit test với fake đều xanh trong khi các lỗi này tồn tại:
+
+1. ProcessPayment commit hai lần (G-01). Fake không có khái niệm commit, nên không thể tái hiện "lần ghi thứ hai lỗi".
+2. Ghi vượt khi hai payment đồng thời (G-02). Fake chạy tuần tự trong một luồng, nên không bao giờ có cuộc đua.
+3. Rowversion từ chối nhầm người mua khi còn hàng (mục 9). Fake không có rowversion, nên CreateOrder luôn thành công.
+4. CHECK constraint và unique index. Fake không có các ràng buộc này, nên không chứng minh được database chặn dữ liệu sai.
+5. Câu SQL có hint UPDLOCK viết đúng hay sai. Fake không chạy SQL.
+
+Điều này không có nghĩa unit test vô ích. Unit test kiểm quy tắc nghiệp vụ nhanh và rõ. Những gì phụ thuộc database thì phải kiểm trên database thật.
+
+### Refactor
+
+- `Fixtures/Concurrently.cs` gom đoạn "cổng xuất phát" đang lặp ở 3 class test.
+- `ProcessPaymentCommandHandler`: tách `EnsureWithinOrderTotalAsync` và `CompleteIfFullyPaidAsync` ra khỏi `RecordPaymentAsync`. Hành vi không đổi, các test của handler không phải sửa.
+
+Rà soát quy tắc của ADR-006: chỉ có 3 handler ghi nhiều lần (Register, ConfirmEmailOtp, ProcessPayment), cả 3 đều chạy trong `ITransactionRunner`.
+
+### Rủi ro đã thấy, chưa xử lý
+
+1. `CreateCustomer` và `ChangeCustomerEmail` cũng trả 400 khi trùng email, giống lỗi SKU vừa sửa. Trong khi `Register` và `CreateStaffUser` trả 409.
+2. ProcessPayment và CancelOrder đọc product không khoá, trong khi CreateOrder đã khoá. Nếu một CreateOrder đổi cùng product đó ngay trước lúc lưu, thanh toán có thể nhận 409 "Concurrent modification" dù hợp lệ. Dữ liệu vẫn đúng vì transaction rollback, nhưng người gọi phải thử lại. Đây là suy luận từ code, chưa có test tái hiện.
+
+### Số test đo 02/11/2026
+
+Chạy với LocalDB, kết quả là 344 test, tất cả pass. Các test database chạy lặp 20 lần, cả 20 lần pass.
+
+- Unit: 259.
+- Integration: 85, gồm 82 test cũ và 3 test mới.

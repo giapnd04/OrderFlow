@@ -25,6 +25,21 @@ public sealed class FailOnSaveChangesInterceptor(int failOnCall) : SaveChangesIn
     }
 }
 
+// Runs an action just before SaveChanges sends its SQL, e.g. another session changing a row
+// this context has already read, which produces a genuine rowversion conflict.
+public sealed class BeforeSaveChangesInterceptor(Func<Task> action) : SaveChangesInterceptor
+{
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        await action();
+
+        return await base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+}
+
 // Fails the first SQL command containing sqlFragment; earlier commands of the same
 // SaveChanges have already run, so this is a failure half-way through one save.
 public sealed class FailOnCommandInterceptor(string sqlFragment) : DbCommandInterceptor

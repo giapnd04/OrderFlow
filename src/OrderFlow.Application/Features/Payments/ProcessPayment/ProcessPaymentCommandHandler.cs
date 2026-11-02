@@ -95,14 +95,7 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
         if (command.Status == PaymentAttemptStatus.Succeeded)
         {
-            var alreadyPaid = await _payments.GetSucceededAmountAsync(order.Id, cancellationToken);
-
-            if (alreadyPaid + command.Amount > order.TotalAmount)
-            {
-                throw new ConflictException(
-                    $"Payment of {command.Amount} would exceed the order total {order.TotalAmount} " +
-                    $"({alreadyPaid} already paid).");
-            }
+            await EnsureWithinOrderTotalAsync(order, command.Amount, cancellationToken);
         }
 
         var paymentAttempt = PaymentAttempt.Create(
@@ -116,32 +109,7 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
         if (command.Status == PaymentAttemptStatus.Succeeded)
         {
-            // AddAsync above already persisted this attempt, so the repository sum includes it.
-            var succeededAmount = await _payments.GetSucceededAmountAsync(order.Id, cancellationToken);
-
-            if (succeededAmount >= order.TotalAmount)
-            {
-                var productIds = order.Items
-                   .Select(item => item.ProductId)
-                   .Distinct()
-                   .ToList();
-
-                var products = await _products.GetByIdsAsync(productIds, cancellationToken);
-
-                var productsById = products.ToDictionary(product => product.Id);
-
-                foreach (var item in order.Items)
-                {
-                    if (!productsById.TryGetValue(item.ProductId, out var product))
-                    {
-                        throw new NotFoundException("Product", item.ProductId);
-                    }
-
-                    product.FulfillReservation(item.Quantity);
-                }
-
-                order.MarkAsPaid();
-            }
+            await CompleteIfFullyPaidAsync(order, cancellationToken);
         }
 
         await _orders.UpdateAsync(order, cancellationToken);
@@ -151,6 +119,50 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
             order.Status,
             paymentAttempt.Id,
             paymentAttempt.Status);
+    }
+
+    private async Task EnsureWithinOrderTotalAsync(Order order, decimal amount, CancellationToken cancellationToken)
+    {
+        var alreadyPaid = await _payments.GetSucceededAmountAsync(order.Id, cancellationToken);
+
+        if (alreadyPaid + amount > order.TotalAmount)
+        {
+            throw new ConflictException(
+                $"Payment of {amount} would exceed the order total {order.TotalAmount} " +
+                $"({alreadyPaid} already paid).");
+        }
+    }
+
+    private async Task CompleteIfFullyPaidAsync(Order order, CancellationToken cancellationToken)
+    {
+        // The new attempt is already persisted, so the repository sum includes it.
+        var succeededAmount = await _payments.GetSucceededAmountAsync(order.Id, cancellationToken);
+
+        if (succeededAmount < order.TotalAmount)
+        {
+            return;
+        }
+
+        var productIds = order.Items
+           .Select(item => item.ProductId)
+           .Distinct()
+           .ToList();
+
+        var products = await _products.GetByIdsAsync(productIds, cancellationToken);
+
+        var productsById = products.ToDictionary(product => product.Id);
+
+        foreach (var item in order.Items)
+        {
+            if (!productsById.TryGetValue(item.ProductId, out var product))
+            {
+                throw new NotFoundException("Product", item.ProductId);
+            }
+
+            product.FulfillReservation(item.Quantity);
+        }
+
+        order.MarkAsPaid();
     }
 
     // Same provider id again: identical payload is a retried callback and gets the original

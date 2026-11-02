@@ -117,6 +117,11 @@ dotnet test
 | [ADR-003](docs/09-architecture-decisions/ADR-003-order-lifecycle.md) | Order lifecycle |
 | [ADR-004](docs/09-architecture-decisions/ADR-004-inventory-reservation.md) | Inventory reservation |
 | [ADR-005](docs/09-architecture-decisions/ADR-005-authentication-authorization-and-api-hardening.md) | Auth, authorization, API hardening |
+| [ADR-006](docs/09-architecture-decisions/ADR-006-transaction-boundary.md) | Transaction boundary for multi-write use cases |
+| [ADR-007](docs/09-architecture-decisions/ADR-007-concurrency-strategy.md) | Concurrency strategy for stock reservation (measured) |
+| [ADR-008](docs/09-architecture-decisions/ADR-008-payment-idempotency.md) | Payment idempotency and over-payment guard |
+| [ADR-009](docs/09-architecture-decisions/ADR-009-integration-test-database.md) | Database for integration tests |
+| [Testing](docs/06-testing.md) | Test baseline, gap register, measured results |
 
 ## Known limitations / roadmap
 

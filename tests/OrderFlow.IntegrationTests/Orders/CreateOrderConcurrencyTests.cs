@@ -42,19 +42,13 @@ public sealed class CreateOrderConcurrencyTests : IAsyncLifetime
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestTokens.For(UserRole.Sales));
 
-        // Hold every request at the same starting line so they overlap in the database.
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var body = new { customerId, items = new[] { new { productId, quantity = 1 } } };
 
-        var calls = Enumerable.Range(0, requests).Select(async _ =>
+        var results = await Concurrently.RunAsync(requests, async () =>
         {
-            await start.Task;
             using var response = await client.PostAsJsonAsync("/api/orders", body);
             return (response.StatusCode, Body: await response.Content.ReadAsStringAsync());
-        }).ToList();
-
-        start.SetResult();
-        var results = await Task.WhenAll(calls);
+        });
 
         var unexpected = results.Where(r => r.StatusCode is not (HttpStatusCode.Created or HttpStatusCode.Conflict)).ToList();
         Assert.True(unexpected.Count == 0,
@@ -82,6 +76,7 @@ public sealed class CreateOrderConcurrencyTests : IAsyncLifetime
 
         Assert.Equal(expectedCreated, await db.Orders.CountAsync());
         Assert.Equal(expectedCreated, product.ReservedQuantity);
+        Assert.Equal(product.ReservedQuantity, await db.OrderItems.SumAsync(i => i.Quantity));
         Assert.True(product.ReservedQuantity <= product.StockQuantity);
     }
 }

@@ -72,18 +72,8 @@ public sealed class ReservationStrategyComparisonTests : IAsyncLifetime
         }
     }
 
-    // Releases every attempt at once so they overlap in the database.
-    private async Task<ReservationOutcome[]> RaceAsync(
+    private Task<ReservationOutcome[]> RaceAsync(
         ReservationStrategy strategy, int requests, (int CustomerId, int ProductId) ids)
-    {
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var attempts = Enumerable.Range(0, requests).Select(async _ =>
-        {
-            await start.Task;
-            return await ReservationStrategies.ReserveAsync(strategy, _sql, ids.CustomerId, ids.ProductId, quantity: 1);
-        }).ToList();
-
-        start.SetResult();
-        return await Task.WhenAll(attempts);
-    }
+        => Concurrently.RunAsync(requests, () =>
+            ReservationStrategies.ReserveAsync(strategy, _sql, ids.CustomerId, ids.ProductId, quantity: 1));
 }

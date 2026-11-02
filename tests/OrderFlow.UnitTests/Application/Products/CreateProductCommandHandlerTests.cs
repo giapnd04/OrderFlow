@@ -147,7 +147,7 @@ public sealed class CreateProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldThrowValidationException_WhenSkuAlreadyExists()
+    public async Task Handle_ShouldThrowConflictException_WhenSkuAlreadyExists()
     {
         // Arrange
         var repository = new FakeProductRepository
@@ -164,7 +164,7 @@ public sealed class CreateProductCommandHandlerTests
             10);
 
         // Act & Assert
-        await Assert.ThrowsAsync<ValidationException>(
+        await Assert.ThrowsAsync<ConflictException>(
             () => handler.Handle(command));
 
         Assert.Equal(0, repository.AddCallCount);

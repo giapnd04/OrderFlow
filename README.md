@@ -70,6 +70,7 @@ Notable design choices:
 | Products | `GET/POST /api/products`, `GET/PUT /api/products/{id}`, `POST .../discontinue`, `.../reactivate`, `.../restock`, `.../reserve`, `GET /api/products/low-stock` |
 | Orders | `GET/POST /api/orders`, `GET /api/orders/{id}`, `POST .../confirm`, `.../cancel`, `.../ship`, `.../deliver`, `GET /api/orders/summary` |
 | Payments | `POST /api/orders/{id}/payments`, `GET /api/orders/{id}/payments`, `.../payments/summary`, `GET /api/payments`, `GET /api/payments/{id}` |
+| Admin | `POST /api/admin/reconciliation/payments` (Administrator only): compares our payments with the simulated provider ledger (`sim.provider_transactions`), see [INC-001](docs/incidents/INC-001-paid-but-pending.md) |
 | Health | `GET /health/live`, `GET /health/ready` |
 
 Role-to-endpoint matrix: see [ADR-005](docs/09-architecture-decisions/ADR-005-authentication-authorization-and-api-hardening.md). Ready-made requests are in [OrderFlow.API.http](src/OrderFlow.API/OrderFlow.API.http).

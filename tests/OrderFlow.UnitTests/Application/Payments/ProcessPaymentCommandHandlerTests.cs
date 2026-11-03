@@ -130,6 +130,23 @@ public sealed class ProcessPaymentCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ReplayOfRecordedPayment_CompletesOrderStuckInPendingPayment()
+    {
+        var product = ReservedProduct(10, reserveQty: 2, price: 100m);
+        var order = PendingOrder(product, 2);
+        var payments = new FakePaymentRepository();
+        await payments.AddAsync(PaymentAttempt.Create(order.Id, 200m, "Stripe", PaymentAttemptStatus.Succeeded, "tx-1"));
+
+        var result = await HandlerFor(new FakeOrderRepository(order), payments, product).Handle(
+            new ProcessPaymentCommand(order.Id, 200m, "Stripe", "tx-1", PaymentAttemptStatus.Succeeded),
+            CancellationToken.None);
+
+        Assert.Equal(OrderStatus.Paid, result.OrderStatus);
+        Assert.Equal(0, product.ReservedQuantity);
+        Assert.Equal(200m, await payments.GetSucceededAmountAsync(order.Id));
+    }
+
+    [Fact]
     public async Task Handle_SameProviderTransactionIdWithDifferentAmount_ThrowsConflict()
     {
         var product = ReservedProduct(10, reserveQty: 2, price: 100m);

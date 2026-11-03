@@ -596,3 +596,41 @@ Chạy với LocalDB, kết quả là 344 test, tất cả pass. Các test datab
 
 - Unit: 259.
 - Integration: 85, gồm 82 test cũ và 3 test mới.
+
+---
+
+## 13. Đối soát thanh toán (03/11/2026)
+
+Mục này thực hiện OF-06. Tình huống: nhà cung cấp thanh toán đã thu tiền, nhưng order vẫn PendingPayment. Diễn giải đầy đủ theo các bước xử lý sự cố nằm ở `docs/incidents/INC-001-paid-but-pending.md`. Đó là bài diễn tập trên dữ liệu giả lập.
+
+### Thay đổi
+
+- Bảng `sim.provider_transactions` giả lập sổ giao dịch của nhà cung cấp, làm nguồn sự thật. Application chỉ biết interface `IPaymentProviderLedger`. Migration `AddSimProviderTransactions` là migration thứ 9.
+- `POST /api/admin/reconciliation/payments` (AdminOnly). Handler gọi lại `ProcessPaymentCommandHandler` cho từng giao dịch, mỗi giao dịch trong một DI scope riêng. Kết quả trả về gồm `checked`, `paymentsRecorded`, `ordersCompleted`, `unchanged` và `needsReview`.
+- Replay trong ProcessPayment giờ tự hoàn tất order bị kẹt: nếu payment Succeeded đã có, tiền đã đủ mà order còn PendingPayment thì chuyển sang Paid, không thêm dòng payment.
+
+### Test
+
+`PaymentReconciliationTests` có 7 test qua API thật:
+- Nhà cung cấp đã thu, chưa có payment: order được sửa. Chạy lần 2 không đổi gì.
+- Payment đã có, order bị kẹt (trạng thái của lỗi G-01): order Paid, vẫn 1 dòng payment.
+- Order đã huỷ cùng một giao dịch lành: giao dịch lỗi vào `needsReview`, giao dịch lành vẫn được xử lý.
+- Số tiền lệch: vào `needsReview`, dữ liệu không đổi.
+- Giao dịch trỏ tới order không tồn tại: vào `needsReview`.
+- Dữ liệu đã khớp: `unchanged = 1`.
+- Token Sales nhận 403, không có token nhận 401.
+
+Handler reconcile không có unit test riêng. Toàn bộ nhánh phân loại của nó được kiểm bằng các test trên, trên SQL Server thật. Phần replay tự hoàn tất có thêm 1 unit test.
+
+### Kết quả đo 03/11/2026
+
+Chạy với LocalDB, kết quả là 352 test, tất cả pass. `PaymentReconciliationTests` chạy lặp 20 lần, cả 20 lần pass.
+
+- Unit: 260, gồm 259 test cũ và 1 test mới.
+- Integration: 92, gồm 85 test cũ và 7 test mới.
+
+### Giới hạn đã biết
+
+- Chỉ đối soát một chiều, từ nhà cung cấp sang OrderFlow. Payment Succeeded mà nhà cung cấp không có giao dịch sẽ không bị phát hiện.
+- Phải có người gọi endpoint, chưa chạy tự động theo lịch.
+- Mỗi lần chạy duyệt toàn bộ bảng giao dịch. Với dữ liệu lớn thì cần lọc theo thời gian.

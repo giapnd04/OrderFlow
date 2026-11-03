@@ -3,12 +3,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OrderFlow.Application.Abstractions.Notifications;
+using OrderFlow.Application.Abstractions.Payments;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Abstractions.Security;
 using OrderFlow.Infrastructure.Authentication;
 using OrderFlow.Infrastructure.ExternalServices;
 using OrderFlow.Infrastructure.Persistence;
 using OrderFlow.Infrastructure.Persistence.Repositories;
+using OrderFlow.Infrastructure.Persistence.Simulation;
 
 namespace OrderFlow.Infrastructure;
 
@@ -36,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IEmailVerificationOtpRepository, EmailVerificationOtpRepository>();
         services.AddScoped<ITransactionRunner, EfTransactionRunner>();
+        services.AddScoped<IPaymentProviderLedger, SimPaymentProviderLedger>();
 
         // Fails fast at startup if the signing key is missing or too short.
         var jwtOptions = JwtOptions.FromConfiguration(configuration);

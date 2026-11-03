@@ -27,6 +27,7 @@ using OrderFlow.Application.Features.Payments.GetOrderPaymentSummary;
 using OrderFlow.Application.Features.Payments.GetPaymentById;
 using OrderFlow.Application.Features.Payments.GetPayments;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
+using OrderFlow.Application.Features.Payments.ReconcilePayments;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Application.Features.Products.DiscontinueProduct;
 using OrderFlow.Application.Features.Products.GetLowStockProducts;
@@ -62,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<ShipOrderCommandHandler>();
         services.AddScoped<DeliverOrderCommandHandler>();
         services.AddScoped<ProcessPaymentCommandHandler>();
+        services.AddScoped<ReconcilePaymentsCommandHandler>();
         services.AddScoped<GetOrderPaymentsQueryHandler>();
         services.AddScoped<GetOrderPaymentSummaryQueryHandler>();
         services.AddScoped<GetPaymentByIdQueryHandler>();

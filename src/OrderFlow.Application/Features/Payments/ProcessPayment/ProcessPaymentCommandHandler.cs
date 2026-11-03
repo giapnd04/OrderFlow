@@ -82,7 +82,7 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
             if (recorded is not null)
             {
-                return Replay(recorded, command, order);
+                return await ReplayAsync(recorded, command, order, cancellationToken);
             }
         }
 
@@ -166,8 +166,14 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
     }
 
     // Same provider id again: identical payload is a retried callback and gets the original
-    // answer; anything else reusing the id is a different payment and is refused.
-    private static ProcessPaymentResult Replay(PaymentAttempt recorded, ProcessPaymentCommand command, Order order)
+    // answer; anything else reusing the id is a different payment and is refused. A recorded
+    // payment can have left a fully paid order stuck in PendingPayment (the failure in INC-001),
+    // so the replay finishes that work. It never adds another payment row.
+    private async Task<ProcessPaymentResult> ReplayAsync(
+        PaymentAttempt recorded,
+        ProcessPaymentCommand command,
+        Order order,
+        CancellationToken cancellationToken)
     {
         var samePayment = recorded.OrderId == command.OrderId
                           && recorded.Amount == command.Amount
@@ -177,6 +183,12 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
         {
             throw new ConflictException(
                 $"Provider transaction '{command.ProviderTransactionId}' was already recorded with different details.");
+        }
+
+        if (recorded.Status == PaymentAttemptStatus.Succeeded && order.Status == OrderStatus.PendingPayment)
+        {
+            await CompleteIfFullyPaidAsync(order, cancellationToken);
+            await _orders.UpdateAsync(order, cancellationToken);
         }
 
         return new ProcessPaymentResult(order.Id, order.Status, recorded.Id, recorded.Status);

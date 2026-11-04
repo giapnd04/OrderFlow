@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -7,6 +8,7 @@ using AuthenticationFailedException = OrderFlow.Application.Exceptions.Authentic
 using ConflictException = OrderFlow.Application.Exceptions.ConflictException;
 using ForbiddenException = OrderFlow.Application.Exceptions.ForbiddenException;
 using NotFoundException = OrderFlow.Application.Exceptions.NotFoundException;
+using TooManyLoginAttemptsException = OrderFlow.Application.Exceptions.TooManyLoginAttemptsException;
 using ValidationException = OrderFlow.Application.Exceptions.ValidationException;
 
 namespace OrderFlow.API.Middleware;
@@ -68,6 +70,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             httpContext.Response.Headers.WWWAuthenticate = "Bearer";
         }
 
+        if (exception is TooManyLoginAttemptsException throttled)
+        {
+            httpContext.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(throttled.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+
         httpContext.Response.StatusCode = statusCode;
         await httpContext.Response.WriteAsJsonAsync(
             problemDetails,
@@ -85,6 +93,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         AuthenticationFailedException => (StatusCodes.Status401Unauthorized, "Authentication failed", exception.Message),
 
         ForbiddenException => (StatusCodes.Status403Forbidden, "Forbidden", exception.Message),
+
+        TooManyLoginAttemptsException => (StatusCodes.Status429TooManyRequests, "Too many requests", exception.Message),
 
         InvalidOrderStateException => (StatusCodes.Status409Conflict, "Invalid order state", exception.Message),
 

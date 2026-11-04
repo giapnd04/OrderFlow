@@ -96,6 +96,12 @@ Development settings in `appsettings.Development.json` use LocalDB and a clearly
 | `Bootstrap__AdminEmail`, `Bootstrap__AdminPassword` | creates the first Administrator at startup |
 | `Cors__AllowedOrigins` | browser origins allowed to call the API (none by default) |
 
+The API should not connect as `db_owner`. [create-app-user.sql](db/scripts/create-app-user.sql) creates a login that can read and write rows but cannot change the schema; migrations run separately under an owner account:
+
+```bash
+sqlcmd -S <server> -i db/scripts/create-app-user.sql -v DatabaseName="OrderFlow" AppPassword="<strong password>"
+```
+
 ## Testing
 
 ```bash
@@ -123,6 +129,7 @@ dotnet test
 | [ADR-008](docs/09-architecture-decisions/ADR-008-payment-idempotency.md) | Payment idempotency and over-payment guard |
 | [ADR-009](docs/09-architecture-decisions/ADR-009-integration-test-database.md) | Database for integration tests |
 | [Testing](docs/06-testing.md) | Test baseline, gap register, measured results |
+| [Security](docs/07-security-performance.md) | Security decisions and the tests behind them |
 
 ## Known limitations / roadmap
 

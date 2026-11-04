@@ -455,6 +455,31 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("OrderFlow.Infrastructure.Authentication.LoginThrottle", b =>
+                {
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)")
+                        .HasColumnName("email");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("int")
+                        .HasColumnName("failed_count");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("locked_until");
+
+                    b.Property<DateTime>("WindowStartedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("window_started_at");
+
+                    b.HasKey("Email")
+                        .HasName("pk_login_throttles");
+
+                    b.ToTable("login_throttles", (string)null);
+                });
+
             modelBuilder.Entity("OrderFlow.Infrastructure.Persistence.Simulation.SimProviderTransaction", b =>
                 {
                     b.Property<int>("Id")

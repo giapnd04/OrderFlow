@@ -16,17 +16,38 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginRes
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
     private readonly IJwtTokenGenerator _tokens;
+    private readonly ILoginThrottleStore _throttle;
+    private readonly TimeProvider _clock;
 
-    public LoginCommandHandler(IUserRepository users, IPasswordHasher hasher, IJwtTokenGenerator tokens)
+    public LoginCommandHandler(
+        IUserRepository users,
+        IPasswordHasher hasher,
+        IJwtTokenGenerator tokens,
+        ILoginThrottleStore throttle,
+        TimeProvider clock)
     {
         _users = users;
         _hasher = hasher;
         _tokens = tokens;
+        _throttle = throttle;
+        _clock = clock;
     }
 
     public async Task<LoginResult> Handle(LoginCommand command, CancellationToken cancellationToken = default)
     {
-        var user = await _users.GetByEmailAsync(User.Normalize(command.Email), cancellationToken);
+        var email = User.Normalize(command.Email);
+        var now = _clock.GetUtcNow().UtcDateTime;
+
+        // Checked first: while locked even the right password is refused, so guessing teaches
+        // nothing, and no PBKDF2 work is spent on the attacker's requests.
+        var lockedUntil = await _throttle.GetLockedUntilAsync(email, cancellationToken);
+
+        if (lockedUntil > now)
+        {
+            throw new TooManyLoginAttemptsException(lockedUntil.Value - now);
+        }
+
+        var user = await _users.GetByEmailAsync(email, cancellationToken);
 
         if (user is null)
         {
@@ -34,13 +55,19 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, LoginRes
             // whether the email is registered.
             _hasher.Hash(command.Password);
 
+            await _throttle.RecordFailureAsync(email, now, cancellationToken);
+
             throw new AuthenticationFailedException();
         }
 
         if (!_hasher.Verify(command.Password, user.PasswordHash))
         {
+            await _throttle.RecordFailureAsync(email, now, cancellationToken);
+
             throw new AuthenticationFailedException();
         }
+
+        await _throttle.ResetAsync(email, cancellationToken);
 
         var token = _tokens.Generate(user);
 

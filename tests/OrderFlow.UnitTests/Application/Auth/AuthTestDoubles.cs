@@ -67,6 +67,30 @@ internal sealed class RecordingEmailSender : IEmailSender
     }
 }
 
+internal sealed class FakeLoginThrottleStore : ILoginThrottleStore
+{
+    public DateTime? LockedUntil { get; set; }
+
+    public int Failures { get; private set; }
+
+    public int Resets { get; private set; }
+
+    public Task<DateTime?> GetLockedUntilAsync(string email, CancellationToken cancellationToken = default)
+        => Task.FromResult(LockedUntil);
+
+    public Task RecordFailureAsync(string email, DateTime nowUtc, CancellationToken cancellationToken = default)
+    {
+        Failures++;
+        return Task.CompletedTask;
+    }
+
+    public Task ResetAsync(string email, CancellationToken cancellationToken = default)
+    {
+        Resets++;
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>Runs the action inline and records whether it completed - the unit-test stand-in for a DB transaction.</summary>
 internal sealed class FakeTransactionRunner : ITransactionRunner
 {

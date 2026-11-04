@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IEmailVerificationOtpRepository, EmailVerificationOtpRepository>();
         services.AddScoped<ITransactionRunner, EfTransactionRunner>();
+        services.AddScoped<ILoginThrottleStore, SqlLoginThrottleStore>();
         services.AddScoped<IPaymentProviderLedger, SimPaymentProviderLedger>();
 
         // Fails fast at startup if the signing key is missing or too short.

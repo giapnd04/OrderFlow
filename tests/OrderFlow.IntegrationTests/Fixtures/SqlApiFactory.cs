@@ -11,5 +11,6 @@ public sealed class SqlApiFactory(string connectionString) : ApiFactory
         ["ConnectionStrings:OrderFlow"] = connectionString,
         // Every test request comes from the same "IP"; keep the per-IP limiter out of the result.
         ["RateLimiting:Global:PermitLimit"] = "10000",
+        ["RateLimiting:Auth:PermitLimit"] = "10000",
     };
 }

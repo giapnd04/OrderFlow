@@ -160,7 +160,7 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-06. Rate limit chỉ theo IP
 
-- OF-07 · P0 · Open
+- OF-07 · P0 · Closed (04/11: thêm khoá tạm theo account, giữ rate limit theo IP; xem mục 14 và `docs/07-security-performance.md`)
 - Vấn đề: rate limit chỉ phân vùng theo IP: global 300 request/phút, auth 10 request/phút. Chưa có throttle theo account, nên nhiều IP có thể cùng dò một tài khoản.
 - Bằng chứng: `RateLimitingExtensions.cs:24-25` đặt giới hạn, `RateLimitingExtensions.cs:71` phân vùng theo `RemoteIpAddress`.
 
@@ -634,3 +634,58 @@ Chạy với LocalDB, kết quả là 352 test, tất cả pass. `PaymentReconci
 - Chỉ đối soát một chiều, từ nhà cung cấp sang OrderFlow. Payment Succeeded mà nhà cung cấp không có giao dịch sẽ không bị phát hiện.
 - Phải có người gọi endpoint, chưa chạy tự động theo lịch.
 - Mỗi lần chạy duyệt toàn bộ bảng giao dịch. Với dữ liệu lớn thì cần lọc theo thời gian.
+
+---
+
+## 14. Bảo mật (04/11/2026)
+
+Mục này đóng G-06 / OF-07. Phần giải thích quyết định nằm ở `docs/07-security-performance.md`. Mục này chỉ ghi test và kết quả.
+
+### Lỗi thật tìm được
+
+`LoggingEmailSender` ghi cả nội dung email vào log ở mọi môi trường, tức là mã OTP nằm trong log. `SensitiveDataLoggingTests` đã đỏ trên code cũ. Sau khi sửa, nội dung email chỉ được ghi trong môi trường Development, và test chuyển xanh.
+
+### Test mới
+
+`AccountLockoutTests` có 6 test:
+- Sai 5 lần trả 401, lần sau dù mật khẩu đúng vẫn trả 429 có `Retry-After`.
+- Khoá một account không ảnh hưởng account khác.
+- Đăng nhập đúng thì bộ đếm được xoá.
+- Email không tồn tại cũng trả 401 rồi 429, giống hệt email có thật.
+- Hết hạn khoá thì đăng nhập lại được.
+- 20 lần sai đồng thời: account bị khoá, và số đếm trong database đúng bằng số response 401, không mất lần nào.
+
+`DataAccessSecurityTests` có 5 case:
+- 3 payload SQL injection trên `GET /api/products?search=`: trả 0 sản phẩm, bảng còn nguyên.
+- Customer xem đơn của mình nhận 200, xem đơn người khác nhận 404, giống hệt đơn không tồn tại.
+- User có đúng 2 role `db_datareader` và `db_datawriter`: đọc ghi được, DROP, ALTER, CREATE TABLE bị từ chối.
+
+`SensitiveDataLoggingTests` có 1 test. Unit test có thêm 3 test cho `LoginCommandHandler`.
+
+Trong lúc làm có một lỗi của chính code mới: câu MERGE đầu tiên có hai nhánh `WHEN MATCHED ... UPDATE`, SQL Server không cho phép, nên login trả 500. `AccountLockoutTests` bắt được ngay, và mình đã gộp lại bằng `CASE`.
+
+### Kiểm chứng script least privilege
+
+Đã chạy thật `db/scripts/create-app-user.sql` hai lần trên database test (chạy lại được), rồi đăng nhập bằng `orderflow_app`:
+- SELECT: chạy được.
+- `DROP TABLE products`: lỗi 3701.
+- `ALTER TABLE products`: lỗi 1088.
+
+Mật khẩu là giá trị ngẫu nhiên dùng một lần. Login và user đã được xoá sau khi kiểm tra.
+
+Chưa kiểm chứng: chạy toàn bộ API bằng tài khoản này.
+
+### Đối chiếu acceptance của OF-07
+
+- 401, 403, 429 theo IP: đã có từ trước trong `ApiSecurityTests`. 404 đơn của người khác: mới thêm.
+- Sai N lần từ nhiều IP thì bị chặn: đạt. Test nâng giới hạn rate limit theo IP lên rất cao, nên kết quả chỉ phụ thuộc vào khoá theo account.
+- Payload SQL injection: đạt, có giải thích vì sao EF an toàn.
+- App user không DROP, ALTER được: đạt, có cả test lẫn chạy thật.
+- Log không chứa OTP, token, password: đạt cho luồng đăng ký và đăng nhập.
+
+### Kết quả đo 04/11/2026
+
+Chạy với LocalDB, kết quả là 367 test, tất cả pass. Các test bảo mật mới chạy lặp 20 lần, cả 20 lần pass.
+
+- Unit: 263, gồm 260 test cũ và 3 test mới.
+- Integration: 104, gồm 92 test cũ và 12 case mới.

@@ -11,7 +11,49 @@ public sealed class LoginCommandHandlerTests
     private readonly FakePasswordHasher _hasher = new();
     private readonly FakeJwtTokenGenerator _tokens = new();
 
-    private LoginCommandHandler Handler() => new(_users, _hasher, _tokens);
+    private readonly FakeLoginThrottleStore _throttle = new();
+
+    private static readonly DateTime Now = new(2026, 11, 4, 9, 0, 0, DateTimeKind.Utc);
+
+    private LoginCommandHandler Handler() => new(_users, _hasher, _tokens, _throttle, new FixedTimeProvider(Now));
+
+    [Fact]
+    public async Task Handle_WhileLocked_RefusesEvenTheRightPasswordAndReportsRetryAfter()
+    {
+        await SeedUserAsync();
+        _throttle.LockedUntil = Now.AddMinutes(10);
+
+        var ex = await Assert.ThrowsAsync<TooManyLoginAttemptsException>(
+            () => Handler().Handle(new LoginCommand("a@example.com", "Password1")));
+
+        Assert.Equal(TimeSpan.FromMinutes(10), ex.RetryAfter);
+        Assert.Equal(0, _throttle.Resets);
+    }
+
+    [Fact]
+    public async Task Handle_LockInThePast_NoLongerBlocks()
+    {
+        await SeedUserAsync();
+        _throttle.LockedUntil = Now.AddSeconds(-1);
+
+        await Handler().Handle(new LoginCommand("a@example.com", "Password1"));
+
+        Assert.Equal(1, _throttle.Resets);
+    }
+
+    [Fact]
+    public async Task Handle_WrongPasswordOrUnknownEmail_RecordsAFailure()
+    {
+        await SeedUserAsync();
+
+        await Assert.ThrowsAsync<AuthenticationFailedException>(
+            () => Handler().Handle(new LoginCommand("a@example.com", "Wrong1")));
+        await Assert.ThrowsAsync<AuthenticationFailedException>(
+            () => Handler().Handle(new LoginCommand("nobody@example.com", "Wrong1")));
+
+        Assert.Equal(2, _throttle.Failures);
+        Assert.Equal(0, _throttle.Resets);
+    }
 
     private async Task<User> SeedUserAsync(
         string email = "a@example.com", string password = "Password1", UserRole role = UserRole.Customer, int? customerId = null)

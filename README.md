@@ -70,6 +70,7 @@ Notable design choices:
 | Products | `GET/POST /api/products`, `GET/PUT /api/products/{id}`, `POST .../discontinue`, `.../reactivate`, `.../restock`, `.../reserve`, `GET /api/products/low-stock` |
 | Orders | `GET/POST /api/orders`, `GET /api/orders/{id}`, `POST .../confirm`, `.../cancel`, `.../ship`, `.../deliver`, `GET /api/orders/summary` |
 | Payments | `POST /api/orders/{id}/payments`, `GET /api/orders/{id}/payments`, `.../payments/summary`, `GET /api/payments`, `GET /api/payments/{id}` |
+| Reports | `GET /api/reports/monthly-revenue`, `/top-customers`, `/stale-pending-orders` (Sales, Administrator); index decisions and measurements in [database design](docs/04-database-design.md) |
 | Admin | `POST /api/admin/reconciliation/payments` (Administrator only): compares our payments with the simulated provider ledger (`sim.provider_transactions`), see [INC-001](docs/incidents/INC-001-paid-but-pending.md) |
 | Health | `GET /health/live`, `GET /health/ready` |
 
@@ -130,6 +131,7 @@ dotnet test
 | [ADR-009](docs/09-architecture-decisions/ADR-009-integration-test-database.md) | Database for integration tests |
 | [Testing](docs/06-testing.md) | Test baseline, gap register, measured results |
 | [Security](docs/07-security-performance.md) | Security decisions and the tests behind them |
+| [Database design](docs/04-database-design.md) | Indexes, execution plans, measurements on 100k orders |
 
 ## Known limitations / roadmap
 

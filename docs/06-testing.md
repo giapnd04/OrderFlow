@@ -689,3 +689,35 @@ Chạy với LocalDB, kết quả là 367 test, tất cả pass. Các test bảo
 
 - Unit: 263, gồm 260 test cũ và 3 test mới.
 - Integration: 104, gồm 92 test cũ và 12 case mới.
+
+---
+
+## 15. Báo cáo SQL và index (05/11/2026)
+
+Mục này thực hiện OF-08. Số đo, plan và lý do từng index nằm ở `docs/04-database-design.md`. Mục này chỉ ghi test.
+
+### Test
+
+`ReportQueriesTests` có 11 case trên một dataset nhỏ, với kết quả mong đợi tính tay ghi ngay trong test:
+- Doanh thu theo tháng: payment Failed không được tính, payment lúc 23:59:59 cuối tháng và 00:00:00 đầu tháng vào đúng tháng, dữ liệu ngoài khoảng không được tính.
+- Top khách: hai khách cùng 150 có cùng hạng 2, khách tiếp theo là hạng 4. Với `top=2` vẫn giữ cả hai khách đồng hạng.
+- Đơn quá hạn: cũ nhất trước, bỏ đơn vừa tạo và đơn đã huỷ.
+- Sản phẩm sắp hết: dùng endpoint có sẵn.
+- 5 case tham số sai trả 400. Warehouse nhận 403, không có token nhận 401.
+
+Với mỗi báo cáo, test còn chạy chính file trong `db/scripts/reports/` trên cùng dữ liệu và so với kết quả endpoint. Câu SQL nằm ở hai nơi, nên test này giữ cho chúng không lệch nhau.
+
+`ReportQueryHandlerTests` có 7 unit test cho validate tham số và cách tính mốc thời gian.
+
+Guard của `seed-100k.sql` đã được thử thật: chạy trên database không có chữ "Perf" hoặc đã có dữ liệu thì script dừng, không ghi gì.
+
+### Kết quả đo 05/11/2026
+
+Chạy với LocalDB, kết quả là 385 test, tất cả pass. `ReportQueriesTests` chạy lặp 5 lần, cả 5 lần pass.
+
+- Unit: 270, gồm 263 test cũ và 7 test mới.
+- Integration: 115, gồm 104 test cũ và 11 case mới.
+
+### Việc còn thiếu so với OF-08
+
+Requirement ghi "plan screenshot". Tài liệu hiện dùng text plan từ `SET SHOWPLAN_TEXT`, chưa có ảnh chụp SSMS. Chưa đo tác động của index khi ghi, và chưa đo khi dữ liệu không nằm trong cache.

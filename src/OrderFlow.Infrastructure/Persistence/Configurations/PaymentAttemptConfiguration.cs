@@ -58,5 +58,19 @@ internal sealed class PaymentAttemptConfiguration : IEntityTypeConfiguration<Pay
         builder.HasIndex(p => new { p.Provider, p.ProviderTransactionId })
             .IsUnique()
             .HasFilter("[provider_transaction_id] IS NOT NULL");
+
+        // Reporting (OF-08): only Succeeded rows count as money, so the filter keeps both
+        // indexes small, and INCLUDE (amount) lets the reports never touch the table.
+        builder.HasIndex(p => p.CreatedAt, "ix_payment_attempts_succeeded_created_at")
+            .IncludeProperties(p => p.Amount)
+            .HasFilter("[status] = N'Succeeded'");
+
+        // Stated explicitly: without it EF drops the plain foreign key index in favour of the
+        // filtered one below, which has no Failed rows and cannot serve "all payments of an order".
+        builder.HasIndex(p => p.OrderId);
+
+        builder.HasIndex(p => p.OrderId, "ix_payment_attempts_succeeded_order_id")
+            .IncludeProperties(p => p.Amount)
+            .HasFilter("[status] = N'Succeeded'");
     }
 }

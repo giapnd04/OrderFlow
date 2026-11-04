@@ -40,6 +40,12 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasColumnType("datetime2")
             .HasDefaultValueSql("SYSUTCDATETIME()");
 
+        // Reporting (OF-08): unpaid orders oldest first. Only a small share of orders is ever
+        // pending, so the filter keeps this index small, and created_at gives the sort for free.
+        builder.HasIndex(o => o.CreatedAt, "ix_orders_pending_created_at")
+            .IncludeProperties(o => new { o.CustomerId, o.TotalAmount })
+            .HasFilter("[status] = N'PendingPayment'");
+
         builder.HasOne<Customer>()
             .WithMany()
             .HasForeignKey(o => o.CustomerId)

@@ -181,6 +181,12 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_orders_customer_id");
 
+                    b.HasIndex(new[] { "CreatedAt" }, "ix_orders_pending_created_at")
+                        .HasDatabaseName("ix_orders_pending_created_at")
+                        .HasFilter("[status] = N'PendingPayment'");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex(new[] { "CreatedAt" }, "ix_orders_pending_created_at"), new[] { "CustomerId", "TotalAmount" });
+
                     b.ToTable("orders", null, t =>
                         {
                             t.HasCheckConstraint("ck_orders_status", "[status] COLLATE Latin1_General_CS_AS IN (N'PendingPayment', N'Paid', N'Confirmed', N'Cancelled', N'Shipped', N'Delivered')");
@@ -297,6 +303,18 @@ namespace OrderFlow.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_payment_attempts_provider_provider_transaction_id")
                         .HasFilter("[provider_transaction_id] IS NOT NULL");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "ix_payment_attempts_succeeded_created_at")
+                        .HasDatabaseName("ix_payment_attempts_succeeded_created_at")
+                        .HasFilter("[status] = N'Succeeded'");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex(new[] { "CreatedAt" }, "ix_payment_attempts_succeeded_created_at"), new[] { "Amount" });
+
+                    b.HasIndex(new[] { "OrderId" }, "ix_payment_attempts_succeeded_order_id")
+                        .HasDatabaseName("ix_payment_attempts_succeeded_order_id")
+                        .HasFilter("[status] = N'Succeeded'");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex(new[] { "OrderId" }, "ix_payment_attempts_succeeded_order_id"), new[] { "Amount" });
 
                     b.ToTable("payment_attempts", null, t =>
                         {

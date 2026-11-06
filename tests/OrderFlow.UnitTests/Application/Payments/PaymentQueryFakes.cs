@@ -35,10 +35,6 @@ internal sealed class ReadOnlyFakeOrderRepository : IOrderRepository
     public Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
     public Task UpdateAsync(Order order, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-    public Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(
-        OrderStatus? status, int? customerId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-        => throw new NotSupportedException();
 }
 
 internal sealed class FakePaymentRepository : IPaymentRepository

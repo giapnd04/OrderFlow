@@ -36,16 +36,23 @@ internal sealed class OrderReportRepository : IOrderReportRepository
         int customerId,
         CancellationToken cancellationToken = default)
     {
-        var orders = _db.Orders.AsNoTracking().Where(o => o.CustomerId == customerId);
+        // One round trip instead of three: COUNT, a conditional SUM and MAX over the same rows.
+        // Grouping by a constant is EF's way of asking for several aggregates in one SELECT.
+        var totals = await _db.Orders
+            .AsNoTracking()
+            .Where(o => o.CustomerId == customerId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                OrderCount = g.Count(),
+                Spent = g.Sum(o => PaidStatuses.Contains(o.Status) ? o.TotalAmount : 0m),
+                LastOrderAt = g.Max(o => (DateTime?)o.CreatedAt),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var orderCount = await orders.CountAsync(cancellationToken);
-
-        var spent = await orders
-            .Where(o => PaidStatuses.Contains(o.Status))
-            .SumAsync(o => (decimal?)o.TotalAmount, cancellationToken) ?? 0m;
-
-        var lastOrderAt = await orders.MaxAsync(o => (DateTime?)o.CreatedAt, cancellationToken);
-
-        return new CustomerOrderTotals(orderCount, spent, lastOrderAt);
+        // No orders at all means no group, hence no row.
+        return totals is null
+            ? new CustomerOrderTotals(0, 0m, null)
+            : new CustomerOrderTotals(totals.OrderCount, totals.Spent, totals.LastOrderAt);
     }
 }

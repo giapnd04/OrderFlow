@@ -11,6 +11,7 @@ using OrderFlow.Application.Features.Orders.DeliverOrder;
 using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrderStatusSummary;
 using OrderFlow.Application.Features.Orders.GetOrders;
+using OrderFlow.Application.Features.Orders.GetOrdersAfter;
 using OrderFlow.Application.Features.Orders.ShipOrder;
 using OrderFlow.Application.Features.Payments.GetOrderPayments;
 using OrderFlow.Application.Features.Payments.GetOrderPaymentSummary;
@@ -248,6 +249,27 @@ public sealed class OrdersController : ControllerBase
 
         var result = await _getOrders.Handle(
             new GetOrdersQuery(pageNumber, pageSize, status, effectiveCustomerId),
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    /// <summary>Keyset paging: pass the previous response's nextAfterId to get the next page.</summary>
+    [HttpGet("cursor")]
+    [Authorize(Policy = Policies.Authenticated)]
+    [ProducesResponseType(typeof(GetOrdersAfterResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<GetOrdersAfterResult>> GetOrdersAfter(
+        [FromServices] GetOrdersAfterQueryHandler getOrdersAfter,
+        [FromQuery] int? afterId = null,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] OrderStatus? status = null,
+        [FromQuery] int? customerId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var effectiveCustomerId = IsCustomer ? RequireOwnCustomerId() : customerId;
+
+        var result = await getOrdersAfter.Handle(
+            new GetOrdersAfterQuery(afterId, pageSize, status, effectiveCustomerId),
             cancellationToken);
 
         return Ok(result);

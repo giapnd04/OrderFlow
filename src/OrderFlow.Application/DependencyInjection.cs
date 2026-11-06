@@ -22,6 +22,7 @@ using OrderFlow.Application.Features.Orders.GetOrderById;
 using OrderFlow.Application.Features.Orders.GetOrderStatusSummary;
 using OrderFlow.Application.Features.Reports;
 using OrderFlow.Application.Features.Orders.GetOrders;
+using OrderFlow.Application.Features.Orders.GetOrdersAfter;
 using OrderFlow.Application.Features.Orders.ShipOrder;
 using OrderFlow.Application.Features.Payments.GetOrderPayments;
 using OrderFlow.Application.Features.Payments.GetOrderPaymentSummary;
@@ -70,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<GetPaymentByIdQueryHandler>();
         services.AddScoped<GetPaymentsQueryHandler>();
         services.AddScoped<GetOrdersQueryHandler>();
+        services.AddScoped<GetOrdersAfterQueryHandler>();
         services.AddScoped<GetOrderStatusSummaryQueryHandler>();
         services.AddScoped<GetMonthlyRevenueQueryHandler>();
         services.AddScoped<GetTopCustomersQueryHandler>();

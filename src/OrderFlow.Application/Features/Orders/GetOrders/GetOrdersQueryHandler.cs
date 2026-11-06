@@ -9,9 +9,9 @@ public sealed class GetOrdersQueryHandler
 {
     private const int MaxPageSize = 100;
 
-    private readonly IOrderRepository _orders;
+    private readonly IOrderQueries _orders;
 
-    public GetOrdersQueryHandler(IOrderRepository orders)
+    public GetOrdersQueryHandler(IOrderQueries orders)
     {
         _orders = orders;
     }
@@ -35,7 +35,7 @@ public sealed class GetOrdersQueryHandler
             throw new ValidationException($"PageSize cannot be greater than {MaxPageSize}.");
         }
 
-        var (orders, totalCount) = await _orders.GetPagedAsync(
+        var (orders, totalCount) = await _orders.GetPageAsync(
             query.Status,
             query.CustomerId,
             query.PageNumber,
@@ -46,7 +46,7 @@ public sealed class GetOrdersQueryHandler
 
         var items = orders
             .Select(order => new GetOrdersItemResult(
-                order.Id,
+                order.OrderId,
                 order.CustomerId,
                 order.Status.ToString(),
                 order.TotalAmount))

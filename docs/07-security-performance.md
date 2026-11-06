@@ -83,4 +83,56 @@ JWT signing key và connection string đọc từ cấu hình, không nằm tron
 
 ## Phần 2. Hiệu năng
 
-Sẽ viết ở OF-08 (index, query tuning) và OF-09 (EF Core query efficiency).
+Index và execution plan nằm ở `docs/04-database-design.md` (OF-08). Phần này nói về cách dùng EF Core (OF-09).
+
+Số đo ngày 06/11/2026 trên `OrderFlow_Perf` (100.000 orders, LocalDB, một máy). Mỗi query chạy 8 lần, bỏ lần đầu, lấy trung vị. Logical reads là số đáng tin nhất. Thời gian chỉ xem như độ lớn.
+
+### Tracking và AsNoTracking
+
+Mặc định EF theo dõi (track) mọi entity nó tải về, để biết cái gì đổi khi gọi SaveChanges. Việc theo dõi tốn bộ nhớ và CPU. Các truy vấn chỉ đọc trong OrderFlow đều dùng `AsNoTracking()`. Truy vấn dùng để sửa (`GetByIdForUpdateAsync`) thì vẫn tracked.
+
+Truy vấn có projection (`Select` ra DTO) thì không có entity nào để theo dõi, nên không cần `AsNoTracking`.
+
+### Include và projection
+
+`Include` tải entity kèm các entity liên quan, nghĩa là mọi cột của chúng. Projection bằng `Select(o => new OrderListItem(...))` chỉ lấy đúng các cột được chọn, và EF dịch thẳng thành SQL.
+
+Trước ngày 06/11, danh sách order tải nguyên entity: 7 cột, gồm `row_version`, `created_at`, `updated_at`. Sau đó handler mới chọn 4 trường. Bây giờ SQL chỉ lấy 4 cột. Câu SQL EF sinh ra đã được kiểm tra trong log: `SELECT [o].[id], [o].[customer_id], [o].[status], [o].[total_amount] FROM [orders] ...`.
+
+Đo trên trang 2.500: cả hai cách đều 526 logical reads. Thời gian 10 ms so với 12 ms, khác biệt nằm trong độ dao động. Với bảng orders này, projection không giảm việc đọc của database, vì vẫn đọc cùng các trang của clustered index. Lợi ích là ít dữ liệu truyền qua mạng hơn, ít object phải tạo hơn, và không lộ cột nội bộ. Lợi ích sẽ rõ hơn với bảng có cột lớn, hoặc khi có index phủ đủ các cột được chọn.
+
+### N+1
+
+N+1 là khi tải một danh sách N dòng bằng 1 câu, rồi với mỗi dòng lại chạy thêm 1 câu để lấy dữ liệu liên quan. Tổng cộng là N + 1 câu, nên chi phí tăng theo kích thước trang. Nguyên nhân thường gặp là lazy loading, hoặc gọi repository bên trong vòng lặp.
+
+Cách phát hiện trong OrderFlow: `SqlCommandCounter`, một interceptor của EF, đếm số câu SQL của mỗi request. Test `QueryCountTests` gọi mỗi endpoint danh sách với pageSize 10 và 100, rồi so sánh số câu. N+1 sẽ lộ ra ngay vì số câu tăng theo pageSize.
+
+Kết quả rà soát ngày 06/11: không có N+1. Lazy loading không bật, không handler nào gọi database trong vòng lặp. `GET /api/orders`, `/api/products`, `/api/customers`, `/api/payments` đều đúng 2 câu (COUNT và một trang) với mọi pageSize. Test giữ nguyên trạng thái này, để nếu sau này ai thêm N+1 thì test sẽ đỏ.
+
+Chỗ thừa thật đã sửa: `GET /api/customers/{id}/order-stats` chạy 4 câu. Một câu kiểm tra customer tồn tại, rồi COUNT, SUM, MAX chạy riêng trên cùng tập order. Đã gộp COUNT, SUM, MAX thành một câu tổng hợp, nên giờ còn 2 câu. Test đỏ trên code cũ (4 câu), xanh sau khi sửa (2 câu).
+
+### IQueryable và IEnumerable
+
+`IQueryable` là truy vấn chưa chạy. Mỗi `Where`, `Select`, `Skip` được nối vào và EF dịch tất cả thành một câu SQL. `IEnumerable` là dữ liệu đã nằm trong bộ nhớ, mọi thao tác sau đó chạy bằng C#.
+
+Nếu gọi `ToList()` quá sớm rồi mới `Where`, database sẽ trả về cả bảng, rồi mới lọc trong bộ nhớ. `OrderQueries` giữ mọi thứ ở dạng `IQueryable` cho tới `ToListAsync` cuối cùng.
+
+### Offset và keyset
+
+Offset (`OFFSET n ROWS FETCH NEXT 20`) phải đọc và bỏ qua n dòng trước trang cần lấy, nên trang càng sâu càng đắt. Còn phải chạy thêm COUNT để tính tổng số trang. Keyset (`WHERE id > @lastSeen ORDER BY id`, client gửi lại id cuối của trang trước) seek thẳng tới vị trí cần, chi phí không đổi theo độ sâu.
+
+Đo thật, pageSize 20, cùng 4 cột:
+- Trang 1: offset 3 reads, keyset 3 reads.
+- Trang 2.500: offset 526 reads, khoảng 10 ms. Keyset 3 reads, khoảng 4 ms.
+- Trang 4.999 (trang cuối): offset 1.046 reads, khoảng 22 ms. Keyset 3 reads, khoảng 2 ms.
+- Câu COUNT mà offset chạy kèm mỗi trang: 349 reads, khoảng 10 ms.
+- Lọc PendingPayment, trang cuối: offset 1.046 reads, khoảng 17 ms. Keyset 8 reads, khoảng 2 ms.
+
+Vì vậy trang cuối của offset tốn khoảng 1.395 reads mỗi request (trang cộng COUNT), còn keyset tốn 3.
+
+Đánh đổi:
+- Keyset không nhảy thẳng được tới trang 2.500, chỉ đi tới trang kế tiếp. Nó hợp với cuộn vô hạn hoặc nút "xem thêm".
+- Keyset không có tổng số trang.
+- Phải sắp xếp theo một khoá duy nhất và ổn định. Ở đây là `id`. Nếu muốn sắp theo ngày thì cursor phải gồm cả (ngày, id).
+
+Vì thế OrderFlow giữ cả hai. `GET /api/orders` (offset) dành cho bảng quản trị cần số trang. `GET /api/orders/cursor` (keyset) dành cho danh sách dài, không cần tổng.

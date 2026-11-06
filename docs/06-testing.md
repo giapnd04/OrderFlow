@@ -721,3 +721,41 @@ Chạy với LocalDB, kết quả là 385 test, tất cả pass. `ReportQueriesT
 ### Việc còn thiếu so với OF-08
 
 Requirement ghi "plan screenshot". Tài liệu hiện dùng text plan từ `SET SHOWPLAN_TEXT`, chưa có ảnh chụp SSMS. Chưa đo tác động của index khi ghi, và chưa đo khi dữ liệu không nằm trong cache.
+
+---
+
+## 16. EF Core hiệu quả (06/11/2026)
+
+Mục này thực hiện OF-09. Giải thích và số đo offset, keyset nằm ở `docs/07-security-performance.md` phần 2.
+
+### Thay đổi
+
+- `Fixtures/SqlCommandCounter.cs`: interceptor đếm mọi câu SQL. `SqlApiFactory` nhận thêm counter tuỳ chọn.
+- Thống kê order của customer: COUNT, SUM, MAX gộp thành một câu, tổng từ 4 câu xuống 2 câu.
+- Interface `IOrderQueries` mới, trả projection `OrderListItem` gồm 4 cột. `GetPagedAsync` được bỏ khỏi `IOrderRepository`, cùng 8 stub không dùng trong các fake của unit test.
+- Endpoint mới `GET /api/orders/cursor` (keyset), trả `items` và `nextAfterId`.
+
+### Test
+
+`QueryCountTests` có 8 case:
+- 4 endpoint danh sách: số câu với pageSize 10 và 100 bằng nhau, tối đa 2 câu.
+- Order-stats: đúng 2 câu, và số liệu đúng. Customer không có order thì trả 0 và `lastOrderAt` là null.
+- Cursor: duyệt hết 25 order theo `nextAfterId`, không trùng, không sót, đúng thứ tự, mỗi trang đúng 1 câu.
+- Cursor: customer chỉ thấy order của mình, kể cả khi gửi `customerId` của người khác.
+
+Kết quả trước khi sửa: test order-stats đỏ, đếm được 4 câu thay vì 2. 4 endpoint danh sách đã xanh sẵn, tức là không có N+1.
+
+Unit test có thêm 4 case cho keyset: duyệt đủ các trang, trang cuối vừa đủ không có cursor tiếp, pageSize sai.
+
+### Số command trước và sau
+
+- `GET /api/orders`: 2 câu trước, 2 câu sau, với mọi pageSize.
+- `GET /api/customers/{id}/order-stats`: 4 câu trước, 2 câu sau.
+- `GET /api/orders/cursor` (mới): 1 câu mỗi trang.
+
+### Kết quả đo 06/11/2026
+
+Chạy với LocalDB, kết quả là 397 test, tất cả pass.
+
+- Unit: 274, gồm 270 test cũ và 4 test mới.
+- Integration: 123, gồm 115 test cũ và 8 case mới.

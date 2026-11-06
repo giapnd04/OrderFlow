@@ -71,10 +71,6 @@ public class DeliverOrderCommandHandlerTests
 
         public Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
             => Task.FromResult(_order is not null && _order.Id == orderId ? _order : null);
-
-        public Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException("Not needed for DeliverOrder tests.");
-
         public Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }

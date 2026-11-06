@@ -52,12 +52,6 @@ public class GetOrderByIdQueryHandlerTests
 
         public Task<Order?> GetByIdForUpdateAsync(int orderId, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for GetOrderById tests.");
-
-        public Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
         public Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("Not needed for GetOrderById tests.");
     }

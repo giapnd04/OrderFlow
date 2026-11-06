@@ -225,12 +225,6 @@ public class CreateOrderCommandHandlerTests
         {
             throw new NotImplementedException();
         }
-
-        public Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
         public Task UpdateAsync(Order order, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

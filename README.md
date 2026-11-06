@@ -68,7 +68,7 @@ Notable design choices:
 | Users | `POST /api/users/staff` (Administrator only) |
 | Customers | `GET/POST /api/customers`, `GET/PUT /api/customers/{id}`, `PUT .../email`, `POST .../deactivate`, `POST .../reactivate`, `GET .../order-stats`, `DELETE .../{id}` |
 | Products | `GET/POST /api/products`, `GET/PUT /api/products/{id}`, `POST .../discontinue`, `.../reactivate`, `.../restock`, `.../reserve`, `GET /api/products/low-stock` |
-| Orders | `GET/POST /api/orders`, `GET /api/orders/{id}`, `POST .../confirm`, `.../cancel`, `.../ship`, `.../deliver`, `GET /api/orders/summary` |
+| Orders | `GET/POST /api/orders`, `GET /api/orders/cursor` (keyset paging), `GET /api/orders/{id}`, `POST .../confirm`, `.../cancel`, `.../ship`, `.../deliver`, `GET /api/orders/summary` |
 | Payments | `POST /api/orders/{id}/payments`, `GET /api/orders/{id}/payments`, `.../payments/summary`, `GET /api/payments`, `GET /api/payments/{id}` |
 | Reports | `GET /api/reports/monthly-revenue`, `/top-customers`, `/stale-pending-orders` (Sales, Administrator); index decisions and measurements in [database design](docs/04-database-design.md) |
 | Admin | `POST /api/admin/reconciliation/payments` (Administrator only): compares our payments with the simulated provider ledger (`sim.provider_transactions`), see [INC-001](docs/incidents/INC-001-paid-but-pending.md) |

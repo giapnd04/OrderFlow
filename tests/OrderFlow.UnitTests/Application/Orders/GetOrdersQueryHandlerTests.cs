@@ -1,6 +1,7 @@
 ﻿using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Orders.GetOrders;
+using OrderFlow.Application.Features.Orders.GetOrdersAfter;
 using OrderFlow.Domain.Entities;
 using OrderFlow.Domain.Enums;
 
@@ -175,7 +176,44 @@ public class GetOrdersQueryHandlerTests
         return orders;
     }
 
-    private sealed class FakeOrderRepository : IOrderRepository
+    [Fact]
+    public async Task HandleAfter_WalksEveryOrderOnceInIdOrder()
+    {
+        var handler = new GetOrdersAfterQueryHandler(new FakeOrderRepository(CreateOrders()));
+
+        var first = await handler.Handle(new GetOrdersAfterQuery(AfterId: null, PageSize: 2));
+        var second = await handler.Handle(new GetOrdersAfterQuery(first.NextAfterId, PageSize: 2));
+        var last = await handler.Handle(new GetOrdersAfterQuery(second.NextAfterId, PageSize: 2));
+
+        Assert.Equal([1, 2], first.Items.Select(i => i.OrderId));
+        Assert.Equal([3, 4], second.Items.Select(i => i.OrderId));
+        Assert.Equal([5], last.Items.Select(i => i.OrderId));
+        Assert.Equal(2, first.NextAfterId);
+        Assert.Null(last.NextAfterId);
+    }
+
+    [Fact]
+    public async Task HandleAfter_ExactlyOneFullPageLeft_HasNoNextCursor()
+    {
+        var handler = new GetOrdersAfterQueryHandler(new FakeOrderRepository(CreateOrders()));
+
+        var result = await handler.Handle(new GetOrdersAfterQuery(AfterId: 3, PageSize: 2));
+
+        Assert.Equal([4, 5], result.Items.Select(i => i.OrderId));
+        Assert.Null(result.NextAfterId);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public async Task HandleAfter_InvalidPageSize_ThrowsValidationException(int pageSize)
+    {
+        var handler = new GetOrdersAfterQueryHandler(new FakeOrderRepository(CreateOrders()));
+
+        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new GetOrdersAfterQuery(null, pageSize)));
+    }
+
+    private sealed class FakeOrderRepository : IOrderQueries
     {
         private readonly List<Order> _orders;
 
@@ -184,67 +222,39 @@ public class GetOrdersQueryHandlerTests
             _orders = orders.ToList();
         }
 
-        public Task AddAsync(
-            Order order,
-            CancellationToken cancellationToken = default)
-            => throw new NotSupportedException(
-                "Not needed for GetOrders tests.");
-
-        public Task<Order?> GetByIdAsync(
-            int orderId,
-            CancellationToken cancellationToken = default)
-            => throw new NotSupportedException(
-                "Not needed for GetOrders tests.");
-
-        public Task<Order?> GetByIdForUpdateAsync(
-            int orderId,
-            CancellationToken cancellationToken = default)
-            => throw new NotSupportedException(
-                "Not needed for GetOrders tests.");
-
-        public Task UpdateAsync(
-            Order order,
-            CancellationToken cancellationToken = default)
-            => throw new NotSupportedException(
-                "Not needed for GetOrders tests.");
-
-        public Task<(
-            IReadOnlyCollection<Order> Orders,
-            int TotalCount)> GetPagedAsync(
+        public Task<(IReadOnlyList<OrderListItem> Items, int TotalCount)> GetPageAsync(
             OrderStatus? status,
             int? customerId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
         {
-            IEnumerable<Order> query = _orders;
+            var filtered = Filtered(status, customerId).ToList();
 
-            if (status.HasValue)
-            {
-                query = query.Where(
-                    order => order.Status == status.Value);
-            }
-
-            if (customerId.HasValue)
-            {
-                query = query.Where(
-                    order => order.CustomerId == customerId.Value);
-            }
-
-            var filteredOrders = query
-                .OrderBy(order => order.Id)
-                .ToList();
-
-            var totalCount = filteredOrders.Count;
-
-            var page = filteredOrders
+            var page = filtered
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
 
-            return Task.FromResult<(
-                IReadOnlyCollection<Order> Orders,
-                int TotalCount)>((page, totalCount));
+            return Task.FromResult<(IReadOnlyList<OrderListItem> Items, int TotalCount)>((page, filtered.Count));
         }
+
+        public Task<IReadOnlyList<OrderListItem>> GetPageAfterAsync(
+            OrderStatus? status,
+            int? customerId,
+            int? afterId,
+            int take,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<OrderListItem>>(Filtered(status, customerId)
+                .Where(order => afterId is null || order.OrderId > afterId)
+                .Take(take)
+                .ToList());
+
+        private IEnumerable<OrderListItem> Filtered(OrderStatus? status, int? customerId)
+            => _orders
+                .Where(order => status is null || order.Status == status)
+                .Where(order => customerId is null || order.CustomerId == customerId)
+                .OrderBy(order => order.Id)
+                .Select(order => new OrderListItem(order.Id, order.CustomerId, order.Status, order.TotalAmount));
     }
 }

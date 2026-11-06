@@ -106,10 +106,6 @@ public sealed class CancelOrderCommandHandlerTests
             => Task.FromResult(_order is not null && _order.Id == orderId ? _order : null);
 
         public Task UpdateAsync(Order order, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(
-            OrderStatus? status, int? customerId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
     }
 
     private sealed class FakeProductRepository : IProductRepository

@@ -15,6 +15,4 @@ public interface IOrderRepository
 
     Task UpdateAsync(Order order, CancellationToken cancellationToken = default);
 
-    Task<(IReadOnlyCollection<Order> Orders, int TotalCount)> GetPagedAsync(OrderStatus? status, int? customerId, int pageNumber, int pageSize,
-    CancellationToken cancellationToken = default);
 }

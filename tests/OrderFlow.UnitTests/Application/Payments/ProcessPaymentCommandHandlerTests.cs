@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
@@ -27,7 +28,8 @@ public sealed class ProcessPaymentCommandHandlerTests
 
     private static ProcessPaymentCommandHandler HandlerFor(
         FakeOrderRepository orders, FakePaymentRepository payments, params Product[] products)
-        => new(orders, payments, new FakeProductRepository(products), new FakeTransactionRunner());
+        => new(orders, payments, new FakeProductRepository(products), new FakeTransactionRunner(),
+            NullLogger<ProcessPaymentCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_SingleSucceededPaymentCoveringTotal_MarksOrderPaidAndFulfillsReservation()

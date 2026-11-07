@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Domain.Enums;
 using OrderFlow.IntegrationTests.Fixtures;
@@ -69,7 +70,7 @@ public sealed class ProcessPaymentAtomicityTests : IAsyncLifetime
         await using var services = _sql.CreateServiceProvider(_output, faults);
         await using var scope = services.CreateAsyncScope();
 
-        var handler = scope.ServiceProvider.GetRequiredService<ProcessPaymentCommandHandler>();
+        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ProcessPaymentCommand, ProcessPaymentResult>>();
 
         await handler.Handle(
             new ProcessPaymentCommand(orderId, TestData.OrderTotal, "TestPay", "TX-1", PaymentAttemptStatus.Succeeded),

@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Logging;
 using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
+using OrderFlow.Application.Logging;
 using OrderFlow.Domain.Entities;
 using OrderFlow.Domain.Enums;
 
@@ -22,17 +24,20 @@ public sealed class CreateOrderCommandHandler
     private readonly IProductRepository _products;
     private readonly IOrderRepository _orders;
     private readonly ITransactionRunner _transactions;
+    private readonly ILogger<CreateOrderCommandHandler> _logger;
 
     public CreateOrderCommandHandler(
         ICustomerRepository customers,
         IProductRepository products,
         IOrderRepository orders,
-        ITransactionRunner transactions)
+        ITransactionRunner transactions,
+        ILogger<CreateOrderCommandHandler> logger)
     {
         _customers = customers;
         _products = products;
         _orders = orders;
         _transactions = transactions;
+        _logger = logger;
     }
 
     public async Task<CreateOrderResult> Handle(
@@ -67,7 +72,9 @@ public sealed class CreateOrderCommandHandler
             async token => result = await ReserveAndCreateAsync(command.CustomerId, requestedQuantities, token),
             cancellationToken);
 
-        return result!;
+        _logger.OrderCreated(result!.OrderId, command.CustomerId, requestedQuantities.Count, result.TotalAmount);
+
+        return result;
     }
 
     private async Task<CreateOrderResult> ReserveAndCreateAsync(

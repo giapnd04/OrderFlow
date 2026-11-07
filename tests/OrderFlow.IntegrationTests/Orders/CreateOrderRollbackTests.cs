@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Orders.CreateOrder;
 using OrderFlow.IntegrationTests.Fixtures;
 using Xunit.Abstractions;
@@ -32,7 +33,7 @@ public sealed class CreateOrderRollbackTests : IAsyncLifetime
         await using (var services = _sql.CreateServiceProvider(_output, new FailOnCommandInterceptor("INSERT INTO [order_items]")))
         await using (var scope = services.CreateAsyncScope())
         {
-            var handler = scope.ServiceProvider.GetRequiredService<CreateOrderCommandHandler>();
+            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<CreateOrderCommand, CreateOrderResult>>();
 
             // EF wraps a failure inside SaveChanges, so the injected fault arrives as the inner exception.
             var ex = await Assert.ThrowsAsync<DbUpdateException>(() => handler.Handle(

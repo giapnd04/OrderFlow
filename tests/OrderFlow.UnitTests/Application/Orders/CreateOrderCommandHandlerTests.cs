@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Orders.CreateOrder;
@@ -23,7 +24,8 @@ public class CreateOrderCommandHandlerTests
             new FakeCustomerRepository(KnownCustomerId),
             new FakeProductRepository(products),
             orders,
-            new FakeTransactionRunner());
+            new FakeTransactionRunner(),
+            NullLogger<CreateOrderCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_ValidRequest_CreatesPendingOrderWithSnapshotPrices()

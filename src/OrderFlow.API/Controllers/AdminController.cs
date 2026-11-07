@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Authorization;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Payments.ReconcilePayments;
 
 namespace OrderFlow.API.Controllers;
@@ -9,9 +10,9 @@ namespace OrderFlow.API.Controllers;
 [Route("api/admin")]
 public sealed class AdminController : ControllerBase
 {
-    private readonly ReconcilePaymentsCommandHandler _reconcilePayments;
+    private readonly ICommandHandler<ReconcilePaymentsCommand, ReconcilePaymentsResult> _reconcilePayments;
 
-    public AdminController(ReconcilePaymentsCommandHandler reconcilePayments)
+    public AdminController(ICommandHandler<ReconcilePaymentsCommand, ReconcilePaymentsResult> reconcilePayments)
     {
         _reconcilePayments = reconcilePayments;
     }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Authorization;
 using OrderFlow.API.Models.Customers;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Customers.ChangeCustomerEmail;
 using OrderFlow.Application.Features.Customers.CreateCustomer;
 using OrderFlow.Application.Features.Customers.DeactivateCustomer;
@@ -18,26 +19,26 @@ namespace OrderFlow.API.Controllers;
 [Route("api/customers")]
 public sealed class CustomersController : ControllerBase
 {
-    private readonly CreateCustomerCommandHandler _createCustomer;
+    private readonly ICommandHandler<CreateCustomerCommand, CreateCustomerResult> _createCustomer;
     private readonly GetCustomerByIdQueryHandler _getCustomerById;
     private readonly GetCustomersQueryHandler _getCustomers;
-    private readonly UpdateCustomerCommandHandler _updateCustomer;
-    private readonly DeactivateCustomerCommandHandler _deactivateCustomer;
-    private readonly ReactivateCustomerCommandHandler _reactivateCustomer;
+    private readonly ICommandHandler<UpdateCustomerCommand, UpdateCustomerResult> _updateCustomer;
+    private readonly ICommandHandler<DeactivateCustomerCommand, DeactivateCustomerResult> _deactivateCustomer;
+    private readonly ICommandHandler<ReactivateCustomerCommand, ReactivateCustomerResult> _reactivateCustomer;
     private readonly GetCustomerOrderStatsQueryHandler _getCustomerOrderStats;
-    private readonly ChangeCustomerEmailCommandHandler _changeCustomerEmail;
-    private readonly DeleteCustomerCommandHandler _deleteCustomer;
+    private readonly ICommandHandler<ChangeCustomerEmailCommand, ChangeCustomerEmailResult> _changeCustomerEmail;
+    private readonly ICommandHandler<DeleteCustomerCommand, DeleteCustomerResult> _deleteCustomer;
 
     public CustomersController(
-        CreateCustomerCommandHandler createCustomer,
+        ICommandHandler<CreateCustomerCommand, CreateCustomerResult> createCustomer,
         GetCustomerByIdQueryHandler getCustomerById,
         GetCustomersQueryHandler getCustomers,
-        UpdateCustomerCommandHandler updateCustomer,
-        DeactivateCustomerCommandHandler deactivateCustomer,
-        ReactivateCustomerCommandHandler reactivateCustomer,
+        ICommandHandler<UpdateCustomerCommand, UpdateCustomerResult> updateCustomer,
+        ICommandHandler<DeactivateCustomerCommand, DeactivateCustomerResult> deactivateCustomer,
+        ICommandHandler<ReactivateCustomerCommand, ReactivateCustomerResult> reactivateCustomer,
         GetCustomerOrderStatsQueryHandler getCustomerOrderStats,
-        ChangeCustomerEmailCommandHandler changeCustomerEmail,
-        DeleteCustomerCommandHandler deleteCustomer)
+        ICommandHandler<ChangeCustomerEmailCommand, ChangeCustomerEmailResult> changeCustomerEmail,
+        ICommandHandler<DeleteCustomerCommand, DeleteCustomerResult> deleteCustomer)
     {
         _getCustomerOrderStats = getCustomerOrderStats;
         _createCustomer = createCustomer;

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Authorization;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.API.Models.Orders;
 using OrderFlow.Application.Abstractions.Security;
 using OrderFlow.Application.Exceptions;
@@ -31,13 +32,13 @@ namespace OrderFlow.API.Controllers;
 [Route("api/orders")]
 public sealed class OrdersController : ControllerBase
 {
-    private readonly CreateOrderCommandHandler _createOrder;
+    private readonly ICommandHandler<CreateOrderCommand, CreateOrderResult> _createOrder;
     private readonly GetOrderByIdQueryHandler _getOrderById;
-    private readonly CancelOrderCommandHandler _cancelOrder;
-    private readonly ConfirmOrderCommandHandler _confirmOrder;
-    private readonly ShipOrderCommandHandler _shipOrder;
-    private readonly DeliverOrderCommandHandler _deliverOrder;
-    private readonly ProcessPaymentCommandHandler _processPayment;
+    private readonly ICommandHandler<CancelOrderCommand, CancelOrderResult> _cancelOrder;
+    private readonly ICommandHandler<ConfirmOrderCommand, ConfirmOrderResult> _confirmOrder;
+    private readonly ICommandHandler<ShipOrderCommand, ShipOrderResult> _shipOrder;
+    private readonly ICommandHandler<DeliverOrderCommand, DeliverOrderResult> _deliverOrder;
+    private readonly ICommandHandler<ProcessPaymentCommand, ProcessPaymentResult> _processPayment;
     private readonly GetOrdersQueryHandler _getOrders;
     private readonly GetOrderPaymentsQueryHandler _getOrderPayments;
     private readonly GetOrderPaymentSummaryQueryHandler _getOrderPaymentSummary;
@@ -45,13 +46,13 @@ public sealed class OrdersController : ControllerBase
     private readonly ICurrentUser _currentUser;
 
     public OrdersController(
-        CreateOrderCommandHandler createOrder,
+        ICommandHandler<CreateOrderCommand, CreateOrderResult> createOrder,
         GetOrderByIdQueryHandler getOrderById,
-        CancelOrderCommandHandler cancelOrder,
-        ConfirmOrderCommandHandler confirmOrder,
-        ShipOrderCommandHandler shipOrder,
-        DeliverOrderCommandHandler deliverOrder,
-        ProcessPaymentCommandHandler processPayment,
+        ICommandHandler<CancelOrderCommand, CancelOrderResult> cancelOrder,
+        ICommandHandler<ConfirmOrderCommand, ConfirmOrderResult> confirmOrder,
+        ICommandHandler<ShipOrderCommand, ShipOrderResult> shipOrder,
+        ICommandHandler<DeliverOrderCommand, DeliverOrderResult> deliverOrder,
+        ICommandHandler<ProcessPaymentCommand, ProcessPaymentResult> processPayment,
         GetOrdersQueryHandler getOrders,
         GetOrderPaymentsQueryHandler getOrderPayments,
         GetOrderPaymentSummaryQueryHandler getOrderPaymentSummary,

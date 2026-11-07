@@ -166,13 +166,13 @@ Mỗi gap ghi vấn đề, bằng chứng trong code, requirement xử lý (OF-x
 
 ### G-07. Validation pipeline không thống nhất
 
-- OF-10 · P0 · Open
+- OF-10 · P0 · Closed (07/11: mọi command đi qua decorator, có test canh giữ; chuyển quy tắc sang validator riêng vẫn còn, xem mục 17)
 - Vấn đề: decorator validation mới chỉ đăng ký cho 4 command auth/user. Các command còn lại tự validate trong handler.
 - Bằng chứng: `DependencyInjection.cs:53-56`. Ví dụ `ProcessPaymentCommandHandler.cs` tự ném `ValidationException`.
 
 ### G-08. Logging thưa, không có correlation ID
 
-- OF-10 · P0 · Open
+- OF-10 · P0 · Closed (07/11: correlation id, log JSON có scope, 6 sự kiện nghiệp vụ, xem mục 17)
 - Vấn đề: `ILogger` chỉ xuất hiện ở 3 file, nên không truy vết được một request qua các bước nghiệp vụ.
 - Bằng chứng: `GlobalExceptionHandler.cs`, `BootstrapAdminExtensions.cs`, `LoggingEmailSender.cs`.
 
@@ -759,3 +759,51 @@ Chạy với LocalDB, kết quả là 397 test, tất cả pass.
 
 - Unit: 274, gồm 270 test cũ và 4 test mới.
 - Integration: 123, gồm 115 test cũ và 8 case mới.
+
+---
+
+## 17. Correlation ID, log nghiệp vụ, validation cho mọi command (07/11/2026)
+
+Mục này thực hiện OF-10, đóng G-07 và G-08. Giải thích chi tiết và log mẫu thật nằm ở `docs/07-security-performance.md` phần 3.
+
+### Thay đổi
+
+- `CorrelationIdMiddleware` đặt đầu pipeline. `correlationId` có trong header và trong mọi ProblemDetails.
+- Log console dạng JSON có scope.
+- 6 sự kiện nghiệp vụ trong `BusinessEvents.cs`, chỉ log sau khi commit.
+- 23 command handler đi qua `ValidationCommandHandlerDecorator`. `OrdersController` và `AdminController` chuyển sang `ICommandHandler<,>`, giống `CustomersController` và `ProductsController` mà bạn đã tự sửa trước đó.
+- Command timeout cấu hình được, mặc định 30 giây.
+
+### Test mới (15 case)
+
+`CorrelationIdTests` có 10 case, không cần database:
+- Không gửi header thì nhận id mới. Gửi id hợp lệ thì nhận lại đúng id đó.
+- Id có khoảng trắng, xuống dòng, ký tự HTML hoặc quá 64 ký tự thì bị thay.
+- Response 400 và 401 có `correlationId` trùng với header.
+- Log của một request lỗi đều mang cùng id.
+- `/health/ready` trả 503 khi database không tới được. Phần "dừng SQL container" trong lịch được thay bằng test này, vì máy chưa có Docker.
+
+`BusinessEventLogTests` có 1 test: tạo order rồi thanh toán qua API. OrderCreated mang id của request tạo, PaymentRecorded và OrderPaid mang id của request thanh toán.
+
+`PipelineCoverageTests` có 4 test: có đủ handler để kiểm, mọi handler nằm sau decorator, không controller nào nhận class handler cụ thể, command timeout đọc từ cấu hình.
+
+`SensitiveDataLoggingTests` (Ngày 9) vẫn xanh với log JSON mới.
+
+### Kiểm chứng thêm
+
+- Thử bỏ đăng ký một handler: `PipelineCoverageTests` đỏ, và báo đúng `RestockProductCommandHandler`.
+- Chạy API thật ở Production: lọc được log theo correlation id. Log không chứa mật khẩu hay JWT.
+- Phát hiện khi chạy thật: framework tự ghi Error cho cả lỗi 409 đã xử lý, và câu SQL của EF làm log rất dày. Đã chỉnh mức log hai category này.
+
+### Kết quả đo 07/11/2026
+
+Chạy với LocalDB, kết quả là 412 test, tất cả pass.
+
+- Unit: 274.
+- Integration: 138, gồm 123 test cũ và 15 case mới.
+
+### Việc còn lại
+
+- Chuyển quy tắc validate đang nằm trong 19 handler sang validator riêng.
+- Chưa đẩy log ra hệ thống tập trung (Seq, Elastic). Hiện log chỉ ra console.
+

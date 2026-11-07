@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using OrderFlow.Application.Logging;
 using OrderFlow.Domain.Exceptions;
 using AuthenticationFailedException = OrderFlow.Application.Exceptions.AuthenticationFailedException;
 using ConflictException = OrderFlow.Application.Exceptions.ConflictException;
@@ -42,6 +43,10 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 httpContext.Request.Method,
                 httpContext.Request.Path);
         }
+        else if (exception is DbUpdateConcurrencyException)
+        {
+            _logger.ConcurrencyConflict(httpContext.Request.Method, httpContext.Request.Path);
+        }
         else
         {
             _logger.LogWarning(
@@ -59,6 +64,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             Detail = detail,
             Instance = httpContext.Request.Path,
         };
+
+        CorrelationIdMiddleware.AddTo(problemDetails, httpContext);
 
         if (exception is ValidationException { Errors.Count: > 0 } validation)
         {

@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Abstractions.Payments;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
+using OrderFlow.Application.Logging;
 using OrderFlow.Application.Features.Payments.ProcessPayment;
 using OrderFlow.Domain.Enums;
 using OrderFlow.Domain.Exceptions;
@@ -21,11 +23,16 @@ public sealed class ReconcilePaymentsCommandHandler
 {
     private readonly IPaymentProviderLedger _ledger;
     private readonly IServiceScopeFactory _scopes;
+    private readonly ILogger<ReconcilePaymentsCommandHandler> _logger;
 
-    public ReconcilePaymentsCommandHandler(IPaymentProviderLedger ledger, IServiceScopeFactory scopes)
+    public ReconcilePaymentsCommandHandler(
+        IPaymentProviderLedger ledger,
+        IServiceScopeFactory scopes,
+        ILogger<ReconcilePaymentsCommandHandler> logger)
     {
         _ledger = ledger;
         _scopes = scopes;
+        _logger = logger;
     }
 
     public async Task<ReconcilePaymentsResult> Handle(
@@ -61,6 +68,8 @@ public sealed class ReconcilePaymentsCommandHandler
             }
         }
 
+        _logger.ReconciliationApplied(captured.Count, paymentsRecorded, ordersCompleted, needsReview.Count);
+
         return new ReconcilePaymentsResult(captured.Count, paymentsRecorded, ordersCompleted, unchanged, needsReview);
     }
 
@@ -79,7 +88,7 @@ public sealed class ReconcilePaymentsCommandHandler
         var orderBefore = await services.GetRequiredService<IOrderRepository>()
             .GetByIdAsync(transaction.OrderId, cancellationToken);
 
-        var result = await services.GetRequiredService<ProcessPaymentCommandHandler>().Handle(
+        var result = await services.GetRequiredService<ICommandHandler<ProcessPaymentCommand, ProcessPaymentResult>>().Handle(
             new ProcessPaymentCommand(
                 transaction.OrderId,
                 transaction.Amount,

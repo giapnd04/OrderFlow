@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
 using OrderFlow.Application.Features.Orders.CancelOrder;
@@ -29,7 +30,7 @@ public sealed class CancelOrderCommandHandlerTests
     {
         var product = ReservedProduct(10, stock: 20, reserveQty: 3);
         var order = PendingOrder(product, 3);
-        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(product));
+        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(product), NullLogger<CancelOrderCommandHandler>.Instance);
 
         var result = await handler.Handle(new CancelOrderCommand(order.Id));
 
@@ -45,7 +46,7 @@ public sealed class CancelOrderCommandHandlerTests
         var order = PendingOrder(product, 3);
         order.MarkAsPaid();
         order.Confirm();
-        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(product));
+        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(product), NullLogger<CancelOrderCommandHandler>.Instance);
 
         var result = await handler.Handle(new CancelOrderCommand(order.Id));
 
@@ -60,7 +61,7 @@ public sealed class CancelOrderCommandHandlerTests
         var product = ReservedProduct(10, stock: 20, reserveQty: 3);
         var order = PendingOrder(product, 3);
         order.MarkAsPaid();
-        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(product));
+        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(product), NullLogger<CancelOrderCommandHandler>.Instance);
 
         await Assert.ThrowsAsync<InvalidOrderStateException>(() => handler.Handle(new CancelOrderCommand(order.Id)));
         Assert.Equal(3, product.ReservedQuantity);
@@ -69,7 +70,7 @@ public sealed class CancelOrderCommandHandlerTests
     [Fact]
     public async Task Handle_UnknownOrder_ThrowsNotFound()
     {
-        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order: null), new FakeProductRepository());
+        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order: null), new FakeProductRepository(), NullLogger<CancelOrderCommandHandler>.Instance);
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new CancelOrderCommand(999)));
     }
@@ -77,7 +78,7 @@ public sealed class CancelOrderCommandHandlerTests
     [Fact]
     public async Task Handle_InvalidOrderId_ThrowsValidation()
     {
-        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order: null), new FakeProductRepository());
+        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order: null), new FakeProductRepository(), NullLogger<CancelOrderCommandHandler>.Instance);
 
         await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(new CancelOrderCommand(0)));
     }
@@ -87,7 +88,7 @@ public sealed class CancelOrderCommandHandlerTests
     {
         var product = ReservedProduct(10, stock: 20, reserveQty: 3);
         var order = PendingOrder(product, 3);
-        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository());
+        var handler = new CancelOrderCommandHandler(new FakeOrderRepository(order), new FakeProductRepository(), NullLogger<CancelOrderCommandHandler>.Instance);
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new CancelOrderCommand(order.Id)));
     }

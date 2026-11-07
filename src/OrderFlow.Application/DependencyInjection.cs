@@ -50,22 +50,22 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
-        // Auth handlers go through the validation pipeline: controllers depend on
-        // ICommandHandler<,> and get the decorated instance. The older handlers below are
-        // injected as concrete types and still validate inline.
+        // Every command goes through the validation pipeline (OF-10): callers depend on
+        // ICommandHandler<,> and get the decorated instance. PipelineCoverageTests fails if a
+        // command handler is added without this, or if a controller injects the concrete class.
         services.AddValidatedCommandHandler<RegisterCommand, RegisterResult, RegisterCommandHandler>();
         services.AddValidatedCommandHandler<LoginCommand, LoginResult, LoginCommandHandler>();
         services.AddValidatedCommandHandler<ConfirmEmailOtpCommand, ConfirmEmailOtpResult, ConfirmEmailOtpCommandHandler>();
         services.AddValidatedCommandHandler<CreateStaffUserCommand, CreateStaffUserResult, CreateStaffUserCommandHandler>();
 
-        services.AddScoped<CreateOrderCommandHandler>();
+        services.AddValidatedCommandHandler<CreateOrderCommand, CreateOrderResult, CreateOrderCommandHandler>();
         services.AddScoped<GetOrderByIdQueryHandler>();
-        services.AddScoped<CancelOrderCommandHandler>();
-        services.AddScoped<ConfirmOrderCommandHandler>();
-        services.AddScoped<ShipOrderCommandHandler>();
-        services.AddScoped<DeliverOrderCommandHandler>();
-        services.AddScoped<ProcessPaymentCommandHandler>();
-        services.AddScoped<ReconcilePaymentsCommandHandler>();
+        services.AddValidatedCommandHandler<CancelOrderCommand, CancelOrderResult, CancelOrderCommandHandler>();
+        services.AddValidatedCommandHandler<ConfirmOrderCommand, ConfirmOrderResult, ConfirmOrderCommandHandler>();
+        services.AddValidatedCommandHandler<ShipOrderCommand, ShipOrderResult, ShipOrderCommandHandler>();
+        services.AddValidatedCommandHandler<DeliverOrderCommand, DeliverOrderResult, DeliverOrderCommandHandler>();
+        services.AddValidatedCommandHandler<ProcessPaymentCommand, ProcessPaymentResult, ProcessPaymentCommandHandler>();
+        services.AddValidatedCommandHandler<ReconcilePaymentsCommand, ReconcilePaymentsResult, ReconcilePaymentsCommandHandler>();
         services.AddScoped<GetOrderPaymentsQueryHandler>();
         services.AddScoped<GetOrderPaymentSummaryQueryHandler>();
         services.AddScoped<GetPaymentByIdQueryHandler>();
@@ -77,23 +77,23 @@ public static class DependencyInjection
         services.AddScoped<GetTopCustomersQueryHandler>();
         services.AddScoped<GetStalePendingOrdersQueryHandler>();
         services.AddScoped<GetCustomerOrderStatsQueryHandler>();
-        services.AddScoped<CreateCustomerCommandHandler>();
+        services.AddValidatedCommandHandler<CreateCustomerCommand, CreateCustomerResult, CreateCustomerCommandHandler>();
         services.AddScoped<GetCustomerByIdQueryHandler>();
         services.AddScoped<GetCustomersQueryHandler>();
-        services.AddScoped<UpdateCustomerCommandHandler>();
-        services.AddScoped<DeactivateCustomerCommandHandler>();
-        services.AddScoped<ReactivateCustomerCommandHandler>();
-        services.AddScoped<ChangeCustomerEmailCommandHandler>();
-        services.AddScoped<DeleteCustomerCommandHandler>();
-        services.AddScoped<CreateProductCommandHandler>();
+        services.AddValidatedCommandHandler<UpdateCustomerCommand, UpdateCustomerResult, UpdateCustomerCommandHandler>();
+        services.AddValidatedCommandHandler<DeactivateCustomerCommand, DeactivateCustomerResult, DeactivateCustomerCommandHandler>();
+        services.AddValidatedCommandHandler<ReactivateCustomerCommand, ReactivateCustomerResult, ReactivateCustomerCommandHandler>();
+        services.AddValidatedCommandHandler<ChangeCustomerEmailCommand, ChangeCustomerEmailResult, ChangeCustomerEmailCommandHandler>();
+        services.AddValidatedCommandHandler<DeleteCustomerCommand, DeleteCustomerResult, DeleteCustomerCommandHandler>();
+        services.AddValidatedCommandHandler<CreateProductCommand, CreateProductResult, CreateProductCommandHandler>();
         services.AddScoped<GetProductByIdQueryHandler>();
         services.AddScoped<GetProductsQueryHandler>();
-        services.AddScoped<UpdateProductCommandHandler>();
-        services.AddScoped<DiscontinueProductCommandHandler>();
-        services.AddScoped<RestockProductCommandHandler>();
-        services.AddScoped<ReactivateProductCommandHandler>();
+        services.AddValidatedCommandHandler<UpdateProductCommand, UpdateProductResult, UpdateProductCommandHandler>();
+        services.AddValidatedCommandHandler<DiscontinueProductCommand, DiscontinueProductResult, DiscontinueProductCommandHandler>();
+        services.AddValidatedCommandHandler<RestockProductCommand, RestockProductResult, RestockProductCommandHandler>();
+        services.AddValidatedCommandHandler<ReactivateProductCommand, ReactivateProductResult, ReactivateProductCommandHandler>();
         services.AddScoped<GetLowStockProductsQueryHandler>();
-        services.AddScoped<ReserveStockCommandHandler>();
+        services.AddValidatedCommandHandler<ReserveStockCommand, ReserveStockResult, ReserveStockCommandHandler>();
 
         return services;
     }

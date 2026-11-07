@@ -27,7 +27,9 @@ builder.Services
     .AddApiHealthChecks();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
+// Covers the bodies UseStatusCodePages writes (bare 401 / 403 / 404).
+builder.Services.AddProblemDetails(options =>
+    options.CustomizeProblemDetails = context => CorrelationIdMiddleware.AddTo(context.ProblemDetails, context.HttpContext));
 
 var app = builder.Build();
 
@@ -38,8 +40,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();
 }
 
-// Order matters: errors first, then the status-code pages that turn the bare 401/403/404
+// Order matters: the correlation id first, so every later log line (errors included) carries it;
+// then errors, then the status-code pages that turn the bare 401/403/404
 // from auth and routing into ProblemDetails, then CORS / rate limiting, then auth.
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 

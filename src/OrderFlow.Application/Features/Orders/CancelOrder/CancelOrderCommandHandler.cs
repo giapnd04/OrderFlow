@@ -1,6 +1,8 @@
-﻿using OrderFlow.Application.Abstractions.Messaging;
+﻿using Microsoft.Extensions.Logging;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
+using OrderFlow.Application.Logging;
 using OrderFlow.Domain.Enums;
 
 namespace OrderFlow.Application.Features.Orders.CancelOrder;
@@ -9,11 +11,16 @@ public sealed class CancelOrderCommandHandler : ICommandHandler<CancelOrderComma
 {
     private readonly IOrderRepository _orders;
     private readonly IProductRepository _products;
+    private readonly ILogger<CancelOrderCommandHandler> _logger;
 
-    public CancelOrderCommandHandler(IOrderRepository orders, IProductRepository products)
+    public CancelOrderCommandHandler(
+        IOrderRepository orders,
+        IProductRepository products,
+        ILogger<CancelOrderCommandHandler> logger)
     {
         _orders = orders;
         _products = products;
+        _logger = logger;
     }
 
     public async Task<CancelOrderResult> Handle(CancelOrderCommand command, CancellationToken cancellationToken = default)
@@ -63,6 +70,8 @@ public sealed class CancelOrderCommandHandler : ICommandHandler<CancelOrderComma
         }
 
         await _orders.UpdateAsync(order, cancellationToken);
+
+        _logger.OrderCancelled(order.Id, previousStatus.ToString());
 
         return new CancelOrderResult(order.Id, order.Status.ToString());
     }

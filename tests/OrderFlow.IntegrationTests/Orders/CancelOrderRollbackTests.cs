@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Orders.CancelOrder;
 using OrderFlow.Domain.Enums;
 using OrderFlow.IntegrationTests.Fixtures;
@@ -41,7 +42,7 @@ public sealed class CancelOrderRollbackTests : IAsyncLifetime
         await using (var services = _sql.CreateServiceProvider(_output, anotherSession))
         await using (var scope = services.CreateAsyncScope())
         {
-            var handler = scope.ServiceProvider.GetRequiredService<CancelOrderCommandHandler>();
+            var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<CancelOrderCommand, CancelOrderResult>>();
 
             await Assert.ThrowsAsync<DbUpdateConcurrencyException>(
                 () => handler.Handle(new CancelOrderCommand(orderId), CancellationToken.None));

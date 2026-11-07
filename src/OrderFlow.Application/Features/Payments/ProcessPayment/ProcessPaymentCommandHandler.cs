@@ -1,6 +1,8 @@
-﻿using OrderFlow.Application.Abstractions.Messaging;
+﻿using Microsoft.Extensions.Logging;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Abstractions.Persistence;
 using OrderFlow.Application.Exceptions;
+using OrderFlow.Application.Logging;
 using OrderFlow.Domain.Entities;
 using OrderFlow.Domain.Enums;
 using OrderFlow.Domain.Exceptions;
@@ -13,17 +15,20 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
     private readonly IPaymentRepository _payments;
     private readonly IProductRepository _products;
     private readonly ITransactionRunner _transactions;
+    private readonly ILogger<ProcessPaymentCommandHandler> _logger;
 
     public ProcessPaymentCommandHandler(
         IOrderRepository orders,
         IPaymentRepository payments,
         IProductRepository products,
-        ITransactionRunner transactions)
+        ITransactionRunner transactions,
+        ILogger<ProcessPaymentCommandHandler> logger)
     {
         _orders = orders;
         _payments = payments;
         _products = products;
         _transactions = transactions;
+        _logger = logger;
     }
 
     public async Task<ProcessPaymentResult> Handle(
@@ -51,18 +56,34 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
             throw new ValidationException("Provider transaction ID is required for a succeeded payment.");
         }
 
-        ProcessPaymentResult? result = null;
+        PaymentOutcome? outcome = null;
 
         // The payment insert and the order/product update are two SaveChanges calls; one
         // transaction makes them commit or roll back together (ADR-006).
         await _transactions.ExecuteAsync(
-            async token => result = await RecordPaymentAsync(command, token),
+            async token => outcome = await RecordPaymentAsync(command, token),
             cancellationToken);
 
-        return result!;
+        var result = outcome!.Result;
+
+        // Only now, after commit: a rolled-back payment must never appear in the log.
+        if (outcome.NewPayment)
+        {
+            _logger.PaymentRecorded(
+                result.PaymentAttemptId, result.OrderId, command.Amount, command.Provider.Trim(), result.PaymentAttemptStatus.ToString());
+        }
+
+        if (outcome.BecamePaid)
+        {
+            _logger.OrderPaid(result.OrderId);
+        }
+
+        return result;
     }
 
-    private async Task<ProcessPaymentResult> RecordPaymentAsync(
+    private sealed record PaymentOutcome(ProcessPaymentResult Result, bool NewPayment, bool BecamePaid);
+
+    private async Task<PaymentOutcome> RecordPaymentAsync(
         ProcessPaymentCommand command,
         CancellationToken cancellationToken)
     {
@@ -82,7 +103,10 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
             if (recorded is not null)
             {
-                return await ReplayAsync(recorded, command, order, cancellationToken);
+                var wasPending = order.Status == OrderStatus.PendingPayment;
+                var replayed = await ReplayAsync(recorded, command, order, cancellationToken);
+
+                return new PaymentOutcome(replayed, NewPayment: false, BecamePaid: wasPending && replayed.OrderStatus == OrderStatus.Paid);
             }
         }
 
@@ -114,11 +138,13 @@ public sealed class ProcessPaymentCommandHandler : ICommandHandler<ProcessPaymen
 
         await _orders.UpdateAsync(order, cancellationToken);
 
-        return new ProcessPaymentResult(
+        var result = new ProcessPaymentResult(
             order.Id,
             order.Status,
             paymentAttempt.Id,
             paymentAttempt.Status);
+
+        return new PaymentOutcome(result, NewPayment: true, BecamePaid: order.Status == OrderStatus.Paid);
     }
 
     private async Task EnsureWithinOrderTotalAsync(Order order, decimal amount, CancellationToken cancellationToken)

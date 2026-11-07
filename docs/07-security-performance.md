@@ -136,3 +136,112 @@ Vì vậy trang cuối của offset tốn khoảng 1.395 reads mỗi request (tr
 - Phải sắp xếp theo một khoá duy nhất và ổn định. Ở đây là `id`. Nếu muốn sắp theo ngày thì cursor phải gồm cả (ngày, id).
 
 Vì thế OrderFlow giữ cả hai. `GET /api/orders` (offset) dành cho bảng quản trị cần số trang. `GET /api/orders/cursor` (keyset) dành cho danh sách dài, không cần tổng.
+
+## Phần 3. Quan sát hệ thống (OF-10)
+
+### Request đi qua ASP.NET Core thế nào
+
+Request đi qua lần lượt các middleware theo đúng thứ tự trong `Program.cs`, tới controller, rồi response đi ngược lại qua chính các middleware đó. Thứ tự của OrderFlow và lý do:
+
+1. `CorrelationIdMiddleware`: đứng đầu, để mọi dòng log sau nó, kể cả log lỗi, đều có correlation id.
+2. `UseExceptionHandler`: bắt mọi exception ở các bước sau, đổi thành ProblemDetails.
+3. `UseStatusCodePages`: biến các 401, 403, 404 trống thành ProblemDetails.
+4. `UseHttpsRedirection`, CORS, rate limiting: chặn sớm các request không hợp lệ hoặc quá nhiều, trước khi tốn công xác thực.
+5. `UseAuthentication`, rồi `UseAuthorization`: phải xác định "bạn là ai" trước khi hỏi "bạn được làm gì".
+6. `MapControllers`.
+
+Đặt sai thứ tự sẽ gây lỗi khó thấy. Ví dụ đặt correlation id sau exception handler thì log của request lỗi sẽ mất id. Đặt authorization trước authentication thì mọi request đều bị coi là chưa đăng nhập.
+
+### Correlation ID
+
+Mỗi request có một id. Nếu client gửi header `X-Correlation-Id` hợp lệ thì dùng lại, để theo được một yêu cầu qua nhiều service. Nếu không có, hoặc giá trị không hợp lệ, thì sinh GUID mới. Hợp lệ nghĩa là dài 1 đến 64 ký tự, chỉ gồm chữ, số, `-`, `_`, `.`, `:`. Không tin dữ liệu client vì giá trị này được ghi vào log: một giá trị có xuống dòng có thể giả mạo dòng log khác (log injection).
+
+Id được:
+- Gán vào `HttpContext.TraceIdentifier`.
+- Trả về trong header của mọi response, kể cả response lỗi.
+- Đưa vào trường `correlationId` của mọi ProblemDetails.
+- Đặt làm log scope cho cả request.
+
+Khi người dùng báo lỗi, chỉ cần họ gửi `correlationId` trong response lỗi là lọc ra được toàn bộ log của đúng request đó.
+
+ASP.NET Core cũng có sẵn `TraceId` theo chuẩn W3C (Activity), và nó vẫn xuất hiện trong log. OrderFlow dùng thêm header riêng vì nó đơn giản và dễ đọc cho người dùng.
+
+### Structured logging
+
+Log console là JSON, mỗi dòng một object, có scope (`appsettings.json`: `FormatterName: json`, `IncludeScopes: true`). Các giá trị trong message template (`{OrderId}`) trở thành trường riêng, nên lọc được theo `OrderId` hay `CorrelationId` mà không phải dò chuỗi.
+
+Sự kiện nghiệp vụ nằm ở `src/OrderFlow.Application/Logging/BusinessEvents.cs`, viết bằng `[LoggerMessage]` (source generator, không tốn chi phí cấp phát khi log level đang tắt):
+- 1001 OrderCreated
+- 1002 PaymentRecorded
+- 1003 OrderPaid
+- 1004 OrderCancelled
+- 1005 ReconciliationApplied
+- 1006 ConcurrencyConflict (Warning)
+
+Hai quy tắc:
+- Chỉ log sau khi transaction đã commit. Log không được kể một việc đã bị rollback.
+- Chỉ log id, số tiền, trạng thái. Không log tên, email, mật khẩu, OTP hay token.
+
+Mức log:
+- Information cho sự kiện nghiệp vụ.
+- Warning cho lỗi 4xx đã xử lý.
+- Error, kèm stack trace, cho 500.
+
+Hai category được chỉnh:
+- `ExceptionHandlerMiddleware` của framework đặt `None`. Nó tự ghi Error "An unhandled exception has occurred" cho mọi exception, kể cả lỗi 409 đã xử lý, nên gây báo động giả. `GlobalExceptionHandler` đã tự ghi đúng mức.
+- Câu SQL của EF chỉ log ở môi trường Development.
+
+### Log mẫu thật
+
+Chạy API ở môi trường Production trên `OrderFlow_Perf` ngày 07/11/2026, rồi lần lượt tạo order, thanh toán, gửi lại cùng mã giao dịch với số tiền khác, và huỷ một order đã trả tiền. Lọc theo correlation id, mỗi request chỉ còn đúng các dòng của nó (dạng rút gọn: id, EventId, mức log, category, message):
+
+- sample-create, 1001, Information, CreateOrderCommandHandler: "Order 100002 created for customer 2: 1 line(s), total 24.00"
+- sample-pay, 1002, Information, ProcessPaymentCommandHandler: "Payment 102123 of 24.0 recorded for order 100002 via SimPay with status Succeeded"
+- sample-pay, 1003, Information, ProcessPaymentCommandHandler: "Order 100002 fully paid"
+- sample-bad-payment, 0, Warning, GlobalExceptionHandler: "ConflictException while processing POST /api/orders/100002/payments: Provider transaction 'LOG-SAMPLE-100002' was already recorded with different details."
+- sample-cancel-paid, 0, Warning, GlobalExceptionHandler: "InvalidOrderStateException while processing POST /api/orders/100002/cancel: Order cannot be cancelled from status 'Paid'."
+
+Một dòng JSON đầy đủ của sự kiện PaymentRecorded, đã bỏ bớt các scope khác:
+
+```json
+{
+  "Timestamp": "2026-11-07T03:11:54.720Z",
+  "EventId": 1002,
+  "LogLevel": "Information",
+  "Category": "OrderFlow.Application.Features.Payments.ProcessPayment.ProcessPaymentCommandHandler",
+  "Message": "Payment 102123 of 24.0 recorded for order 100002 via SimPay with status Succeeded",
+  "State": {
+    "PaymentAttemptId": 102123,
+    "OrderId": 100002,
+    "Amount": 24.0,
+    "Provider": "SimPay",
+    "PaymentStatus": "Succeeded"
+  },
+  "Scopes": [
+    { "Message": "CorrelationId:sample-pay", "CorrelationId": "sample-pay" }
+  ]
+}
+```
+
+Trong lần chạy này, log không chứa mật khẩu hay JWT. Mình đã kiểm tra bằng cách tìm chính hai chuỗi đó trong file log.
+
+### Lifetime của DI
+
+- Singleton: một instance cho cả ứng dụng. Ví dụ `JwtTokenGenerator`, `Pbkdf2PasswordHasher`, `TimeProvider`. Phải an toàn khi nhiều luồng dùng cùng lúc.
+- Scoped: một instance cho mỗi request. Ví dụ `OrderFlowDbContext` và mọi repository. Nhờ vậy các repository trong cùng request dùng chung một DbContext và cùng một transaction (ADR-006).
+- Transient: mỗi lần xin là một instance mới.
+
+Inject Scoped vào Singleton là lỗi captive dependency: singleton giữ mãi một DbContext của request đầu tiên, dùng chung cho mọi request sau, ở nhiều luồng cùng lúc. Trong Development, ASP.NET Core bật `ValidateScopes` nên phát hiện lỗi này ngay khi resolve. Ở Production thì không, và lỗi chỉ lộ ra khi chạy thật. Reconcile tạo scope riêng cho từng giao dịch bằng `IServiceScopeFactory`, chính là cách đúng khi cần dịch vụ Scoped ngoài phạm vi một request.
+
+### CancellationToken và command timeout
+
+`CancellationToken` từ ASP.NET Core được truyền từ controller xuống tới mọi câu EF. Khi client ngắt kết nối, câu SQL đang chạy được huỷ, không tốn tài nguyên cho một response không ai nhận.
+
+Command timeout mặc định 30 giây, đổi được qua `Database:CommandTimeoutSeconds`. Một câu bị treo (do khoá hay mạng) sẽ lỗi thay vì giữ connection và request mãi.
+
+### Validation cho mọi command
+
+Cả 23 command handler đều được đăng ký bằng `AddValidatedCommandHandler`, và controller chỉ nhận `ICommandHandler<,>`, nên mọi command đều đi qua `ValidationCommandHandlerDecorator`. Test `PipelineCoverageTests` đỏ nếu thêm command mà quên đăng ký, hoặc controller nhận class handler cụ thể. Mình đã thử bỏ đăng ký `RestockProductCommandHandler` để kiểm tra, và test báo đúng tên handler đó.
+
+Hiện mới có validator cho 4 command auth. Các command khác vẫn tự validate trong handler. Pipeline đã sẵn sàng, nên khi chuyển quy tắc sang validator riêng chỉ cần thêm class validator, không phải sửa đăng ký hay controller.
+

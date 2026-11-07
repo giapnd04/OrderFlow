@@ -24,10 +24,17 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "Missing required connection string 'OrderFlow' (ConnectionStrings:OrderFlow).");
 
+        // A query that hangs must fail rather than hold a connection and a request forever (OF-10).
+        var commandTimeoutSeconds = int.TryParse(configuration["Database:CommandTimeoutSeconds"], out var seconds) && seconds > 0
+            ? seconds
+            : 30;
+
         services.AddDbContext<OrderFlowDbContext>(options =>
             options.UseSqlServer(
                 connectionString,
-                sql => sql.MigrationsAssembly(typeof(OrderFlowDbContext).Assembly.FullName)));
+                sql => sql
+                    .MigrationsAssembly(typeof(OrderFlowDbContext).Assembly.FullName)
+                    .CommandTimeout(commandTimeoutSeconds)));
 
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();

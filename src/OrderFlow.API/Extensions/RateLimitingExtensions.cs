@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using OrderFlow.API.Middleware;
 
 namespace OrderFlow.API.Extensions;
 
@@ -50,14 +51,18 @@ public static class RateLimitingExtensions
                     response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture);
                 }
 
+                var problem = new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Too many requests",
+                    Detail = "Rate limit exceeded. Try again later.",
+                    Instance = context.HttpContext.Request.Path,
+                };
+
+                CorrelationIdMiddleware.AddTo(problem, context.HttpContext);
+
                 await response.WriteAsJsonAsync(
-                    new ProblemDetails
-                    {
-                        Status = StatusCodes.Status429TooManyRequests,
-                        Title = "Too many requests",
-                        Detail = "Rate limit exceeded. Try again later.",
-                        Instance = context.HttpContext.Request.Path,
-                    },
+                    problem,
                     options: null,
                     contentType: "application/problem+json",
                     cancellationToken);

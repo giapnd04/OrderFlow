@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderFlow.API.Authorization;
 using OrderFlow.API.Models.Products;
+using OrderFlow.Application.Abstractions.Messaging;
 using OrderFlow.Application.Features.Products.CreateProduct;
 using OrderFlow.Application.Features.Products.DiscontinueProduct;
 using OrderFlow.Application.Features.Products.GetLowStockProducts;
@@ -19,26 +20,26 @@ namespace OrderFlow.API.Controllers;
 [Route("api/products")]
 public sealed class ProductsController : ControllerBase
 {
-    private readonly CreateProductCommandHandler _createProduct;
+    private readonly ICommandHandler<CreateProductCommand, CreateProductResult> _createProduct;
     private readonly GetProductByIdQueryHandler _getProductById;
     private readonly GetProductsQueryHandler _getProducts;
-    private readonly UpdateProductCommandHandler _updateProduct;
-    private readonly DiscontinueProductCommandHandler _discontinueProduct;
-    private readonly RestockProductCommandHandler _restockProduct;
-    private readonly ReactivateProductCommandHandler _reactivateProduct;
+    private readonly ICommandHandler<UpdateProductCommand, UpdateProductResult> _updateProduct;
+    private readonly ICommandHandler<DiscontinueProductCommand, DiscontinueProductResult> _discontinueProduct;
+    private readonly ICommandHandler<RestockProductCommand, RestockProductResult> _restockProduct;
+    private readonly ICommandHandler<ReactivateProductCommand, ReactivateProductResult> _reactivateProduct;
     private readonly GetLowStockProductsQueryHandler _getLowStockProducts;
-    private readonly ReserveStockCommandHandler _reserveStock;
+    private readonly ICommandHandler<ReserveStockCommand, ReserveStockResult> _reserveStock;
 
     public ProductsController(
-        CreateProductCommandHandler createProduct,
+        ICommandHandler<CreateProductCommand, CreateProductResult> createProduct,
         GetProductByIdQueryHandler getProductById,
         GetProductsQueryHandler getProducts,
-        UpdateProductCommandHandler updateProduct,
-        DiscontinueProductCommandHandler discontinueProduct,
-        RestockProductCommandHandler restockProduct,
-        ReactivateProductCommandHandler reactivateProduct,
+        ICommandHandler<UpdateProductCommand, UpdateProductResult> updateProduct,
+        ICommandHandler<DiscontinueProductCommand, DiscontinueProductResult> discontinueProduct,
+        ICommandHandler<RestockProductCommand, RestockProductResult> restockProduct,
+        ICommandHandler<ReactivateProductCommand, ReactivateProductResult> reactivateProduct,
         GetLowStockProductsQueryHandler getLowStockProducts,
-        ReserveStockCommandHandler reserveStock)
+        ICommandHandler<ReserveStockCommand, ReserveStockResult> reserveStock)
     {
         _reactivateProduct = reactivateProduct;
         _getLowStockProducts = getLowStockProducts;

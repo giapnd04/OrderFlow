@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore OrderFlow.sln
+
+      - name: Build
+        run: dotnet build OrderFlow.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test tests/OrderFlow.UnitTests -c Release --no-build
+
+      # Testcontainers starts SQL Server through the Docker daemon on the runner.
+      - name: Integration tests
+        run: dotnet test tests/OrderFlow.IntegrationTests -c Release --no-build
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t orderflow-api:ci .

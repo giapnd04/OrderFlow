@@ -1,5 +1,7 @@
 # OrderFlow
 
+[![CI](https://github.com/giapnd04/OrderFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/giapnd04/OrderFlow/actions/workflows/ci.yml)
+
 An order management backend built with ASP.NET Core (.NET 9), EF Core and SQL Server. It models the full order lifecycle — products and stock, customers, orders, payments and fulfilment — with role-based access control, inventory reservation and a controlled order state machine.
 
 This is a backend portfolio project: the goal is to go beyond CRUD and show business-rule modelling, data consistency, security and testing in a realistic domain. There is no frontend; the API is the product.
@@ -102,6 +104,18 @@ The API should not connect as `db_owner`. [create-app-user.sql](db/scripts/creat
 ```bash
 sqlcmd -S <server> -i db/scripts/create-app-user.sql -v DatabaseName="OrderFlow" AppPassword="<strong password>"
 ```
+
+## Running with Docker
+
+Prerequisite: Docker with Compose. This starts SQL Server (data kept in a named volume) and the API, and applies migrations at startup.
+
+```bash
+cp .env.example .env   # then edit the values
+docker compose up --build
+curl http://localhost:8080/health/ready
+```
+
+Details, the migration trade-off and the CI setup are in [docs/08-deployment.md](docs/08-deployment.md).
 
 ## Testing
 

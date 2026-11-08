@@ -33,6 +33,7 @@ builder.Services.AddProblemDetails(options =>
 
 var app = builder.Build();
 
+await app.MigrateDatabaseIfEnabledAsync();
 await app.SeedBootstrapAdminAsync();
 
 if (app.Environment.IsDevelopment())
